@@ -1,27 +1,16 @@
 [package]
-name = "tunnel-server"
+name = "quicktunnel"
 version = "0.1.0"
-edition = "2021"
-
-[[bin]]
-name = "tunnel-server"
-path = "src/main.rs"
-
-[lib]
-name = "tunnel_server"
-path = "src/lib.rs"
+edition = "2024"
 
 [dependencies]
-dashmap = "6.1"
-rand = "0.8"
-tokio = { version = "1.42", features = ["full"] }
+tokio = { version = "1.42", features = ["net", "rt-multi-thread", "macros", "time", "sync"] }
 axum = "0.7"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-russh = "0.44"
-russh-keys = "0.44"
-async-trait = "0.1"
-bytes = "1.5"
+russh = "0.57"
 
-[dev-dependencies]
-proptest = "1.5"
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+strip = true
+panic = 'abort'
