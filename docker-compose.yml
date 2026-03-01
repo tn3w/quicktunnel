@@ -1,0 +1,19 @@
+services:
+  quicktunnel:
+    build: .
+    container_name: quicktunnel
+    ports:
+      - "3000:3000"  # Registration endpoint
+      - "8080:8080"  # Proxy endpoint
+      - "22:22"      # SSH tunnel endpoint
+    volumes:
+      - ssh-keys:/app/keys  # Persist SSH host key across restarts
+    restart: unless-stopped
+
+volumes:
+  ssh-keys:
+
+networks:
+  default:
+    external: true
+    name: ipapi_default

@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>QuickTunnel — SSH Tunneling</title>
+        <link rel="stylesheet" href="/static/style.css" />
+    </head>
+    <body>
+        <div class="tunnel-bg">
+            <div class="tunnel-grid"></div>
+        </div>
+
+        <div class="wrap">
+            <header>
+                <div class="logo">
+                    <div class="logo-dot"></div>
+                    QUICKTUNNEL
+                </div>
+                <nav class="nav">
+                    <a href="#how"
+                        ><span class="desktop-text">How It Works</span
+                        ><span class="mobile-text">How</span>
+                    </a>
+                    <a href="#why"
+                        ><span class="desktop-text">Why QuickTunnel</span
+                        ><span class="mobile-text">Why</span></a
+                    >
+                    <a href="#compare"
+                        ><span class="desktop-text">Comparison</span
+                        ><span class="mobile-text">Compare</span></a
+                    >
+                </nav>
+            </header>
+
+            <section class="hero">
+                <div class="hero-eyebrow">// SSH reverse tunneling &mdash; no install required</div>
+                <h1 class="hero-title glitch" data-text="INSTANT TUNNELS">
+                    INSTANT<br />
+                    <span class="line-accent">TUNNELS</span>
+                </h1>
+
+                <div class="command-section">
+                    <div class="port-config">
+                        <span class="port-label">Local Port —</span>
+                        <div class="port-tabs" id="port-tabs">
+                            <button class="port-tab active" data-port="3000">3000</button>
+                            <button class="port-tab" data-port="8080">8080</button>
+                            <button class="port-tab" data-port="5173">5173</button>
+                            <button class="port-tab" data-port="4000">4000</button>
+                            <button class="port-tab" data-port="9000">9000</button>
+                        </div>
+                        <span class="port-or">or</span>
+                        <input
+                            type="number"
+                            id="custom-port"
+                            placeholder="other"
+                            min="1"
+                            max="65535"
+                        />
+                    </div>
+
+                    <div class="command-box">
+                        <div class="cmd-header">
+                            <div class="cmd-dots">
+                                <div class="cmd-dot"></div>
+                                <div class="cmd-dot"></div>
+                                <div class="cmd-dot"></div>
+                                <span class="cmd-label">bash / zsh / sh</span>
+                            </div>
+                            <button class="cmd-copy" id="copy-btn">Copy</button>
+                        </div>
+                        <code class="command" id="command-display"
+                            ><span class="cmd-kw">ssh</span>
+                            <span class="cmd-flag">-oStrictHostKeyChecking=no</span>
+                            <span class="cmd-flag">-NR</span>
+                            <span class="cmd-port">80</span>:localhost:<span
+                                class="cmd-port"
+                                id="port-display"
+                                >3000</span
+                            >
+                            <span class="cmd-host">t.tn3w.dev</span></code
+                        >
+                    </div>
+                </div>
+            </section>
+
+            <section id="how">
+                <div class="section-title">HOW IT WORKS</div>
+
+                <div class="tunnel-visual">
+                    <div class="tunnel-node left">
+                        <div class="node-circle"></div>
+                        <div class="node-label">localhost:<span id="node-port">3000</span></div>
+                    </div>
+                    <div class="tunnel-track">
+                        <div class="tunnel-packet"></div>
+                        <div class="tunnel-packet"></div>
+                        <div class="tunnel-packet"></div>
+                        <div class="tunnel-center-label">
+                            SSH ENCRYPTED TUNNEL &rarr; t.tn3w.dev
+                        </div>
+                    </div>
+                    <div class="tunnel-node right">
+                        <div class="node-circle"></div>
+                        <div class="node-label">Public Internet</div>
+                    </div>
+                </div>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">STEP <span>01</span></div>
+                        <div class="step-title">Run The Command</div>
+                        <p class="step-desc">
+                            Paste the SSH command into any terminal. SSH is pre-installed on Linux,
+                            macOS, and Windows 10+. No extra software required.
+                        </p>
+                        <div class="step-code">
+                            $ <span class="hl">ssh</span> -NR 80:localhost:<span
+                                class="hl"
+                                id="step-port"
+                                >3000</span
+                            >
+                            t.tn3w.dev
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">STEP <span>02</span></div>
+                        <div class="step-title">Get Your URL</div>
+                        <p class="step-desc">
+                            The server responds instantly with a unique public URL. Share it with
+                            anyone — colleagues, clients, webhooks, APIs.
+                        </p>
+                        <div class="step-code">
+                            ▸ <span class="hl">https://tunnel.t.tn3w.dev</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">STEP <span>03</span></div>
+                        <div class="step-title">Close to Stop</div>
+                        <p class="step-desc">
+                            Hit Ctrl+C to terminate the tunnel. No dangling processes, no lingering
+                            sessions, no data retained.
+                        </p>
+                        <div class="step-code">
+                            ^C <span class="hl"># tunnel closed, URL gone</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="why">
+                <div class="section-title">WHY QUICKTUNNEL</div>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-title">Zero Install</div>
+                        <p class="feature-desc">
+                            SSH comes pre-installed on every major OS. There's nothing to download,
+                            nothing to trust, nothing to update.
+                        </p>
+                        <div class="feature-tag">No binary</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title">Encrypted</div>
+                        <p class="feature-desc">
+                            All traffic flows through SSH — the same battle-tested protocol securing
+                            servers worldwide since 1995.
+                        </p>
+                        <div class="feature-tag">SSH TLS</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⚙️</div>
+                        <div class="feature-title">Any Protocol</div>
+                        <p class="feature-desc">
+                            HTTP, WebSocket, gRPC — if your app speaks TCP, the tunnel carries it.
+                            No restrictions on protocol or content.
+                        </p>
+                        <div class="feature-tag">TCP native</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">👤</div>
+                        <div class="feature-title">No Account</div>
+                        <p class="feature-desc">
+                            No sign-up form, no email confirmation, no OAuth. Just a command.
+                            Anonymous by default.
+                        </p>
+                        <div class="feature-tag">Privacy first</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🌍</div>
+                        <div class="feature-title">Open Source</div>
+                        <p class="feature-desc">
+                            Fully auditable server code. Run your own instance if you need total
+                            control. No black boxes.
+                        </p>
+                        <div class="feature-tag">Apache-2.0</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🚀</div>
+                        <div class="feature-title">Sub-Second</div>
+                        <p class="feature-desc">
+                            The tunnel is live in under a second. No handshake dance, no dashboard
+                            to navigate.
+                        </p>
+                        <div class="feature-tag">&lt; 1s startup</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="compare" id="compare">
+                <div class="section-title">COMPARISON</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="highlight-col">QuickTunnel</th>
+                            <th>ngrok</th>
+                            <th>cloudflared</th>
+                            <th>localtunnel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>No install required</td>
+                            <td class="yes highlight-col">✓ Yes</td>
+                            <td class="no">✗ Binary</td>
+                            <td class="no">✗ Binary</td>
+                            <td class="no">✗ npm</td>
+                        </tr>
+                        <tr>
+                            <td>No account needed</td>
+                            <td class="yes highlight-col">✓ Yes</td>
+                            <td class="no">✗ Required</td>
+                            <td class="yes">✓ Yes</td>
+                            <td class="yes">✓ Yes</td>
+                        </tr>
+                        <tr>
+                            <td>Open source server</td>
+                            <td class="yes highlight-col">✓ Yes</td>
+                            <td class="no">✗ No</td>
+                            <td class="meh">Partial</td>
+                            <td class="yes">✓ Yes</td>
+                        </tr>
+                        <tr>
+                            <td>Encrypted transport</td>
+                            <td class="yes highlight-col">✓ SSH</td>
+                            <td class="yes">✓ TLS</td>
+                            <td class="yes">✓ QUIC/HTTP2</td>
+                            <td class="yes">✓ TLS</td>
+                        </tr>
+                        <tr>
+                            <td>Custom subdomains</td>
+                            <td class="meh highlight-col">— Planned</td>
+                            <td class="meh">Paid</td>
+                            <td class="no">✗ No</td>
+                            <td class="meh">Unstable</td>
+                        </tr>
+                        <tr>
+                            <td>WebSocket support</td>
+                            <td class="yes highlight-col">✓ Yes</td>
+                            <td class="yes">✓ Yes</td>
+                            <td class="yes">✓ Yes</td>
+                            <td class="meh">Partial</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="cta">
+                <div class="cta-tag">// Ready to tunnel?</div>
+                <h2 class="cta-title">ONE<br /><span class="accent">COMMAND</span><br />AWAY</h2>
+                <p class="cta-sub">No downloads. No dashboards. No excuses.</p>
+                <div class="cta-cmd" id="cta-cmd">
+                    <span class="prompt">$</span>ssh -NR 80:localhost:<span id="cta-port"
+                        >3000</span
+                    >
+                    t.tn3w.dev
+                </div>
+            </section>
+
+            <footer>
+                <div>QuickTunnel &copy; 2026 &mdash; Open Source Tunneling</div>
+                <div class="footer-links">
+                    <a href="https://github.com/tn3w/quicktunnel" target="_blank">GitHub</a>
+                    <a href="#how"
+                        ><span class="desktop-text">How It Works</span
+                        ><span class="mobile-text">How</span></a
+                    >
+                    <a href="#why"
+                        ><span class="desktop-text">Why QuickTunnel</span
+                        ><span class="mobile-text">Why</span></a
+                    >
+                    <a href="#compare"
+                        ><span class="desktop-text">Comparison</span
+                        ><span class="mobile-text">Compare</span></a
+                    >
+                </div>
+            </footer>
+        </div>
+
+        <script src="/static/app.js"></script>
+    </body>
+</html>

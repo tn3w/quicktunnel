@@ -444,7 +444,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let proxy_router = Router::new()
         .route("/", any(proxy_request))
-        .route("/*path", any(proxy_request))
+        .route("/{*path}", any(proxy_request))
         .with_state(registry.clone());
     let proxy_listener = TcpListener::bind("0.0.0.0:8080").await?;
 
