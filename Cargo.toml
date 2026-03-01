@@ -1,0 +1,27 @@
+[package]
+name = "tunnel-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tunnel-server"
+path = "src/main.rs"
+
+[lib]
+name = "tunnel_server"
+path = "src/lib.rs"
+
+[dependencies]
+dashmap = "6.1"
+rand = "0.8"
+tokio = { version = "1.42", features = ["full"] }
+axum = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+russh = "0.45"
+russh-keys = "0.45"
+async-trait = "0.1"
+bytes = "1.5"
+
+[dev-dependencies]
+proptest = "1.5"
