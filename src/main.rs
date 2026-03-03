@@ -5,16 +5,16 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::{
+    Router,
     body::Body,
     extract::{Request, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::any,
-    Router,
 };
-use russh::keys::{ssh_key, ssh_key::rand_core::OsRng, Algorithm, PrivateKey};
+use russh::keys::{Algorithm, PrivateKey, ssh_key, ssh_key::rand_core::OsRng};
 use russh::server::{Auth, Config, Handle, Handler, Server, Session};
-use russh::{kex, ChannelId, ChannelMsg, Preferred};
+use russh::{ChannelId, ChannelMsg, Preferred, kex};
 use tokio::net::TcpListener;
 
 type Registry = Arc<RwLock<HashMap<String, Option<Tunnel>>>>;
@@ -127,10 +127,16 @@ fn security_headers() -> HeaderMap {
              base-uri 'self'",
         ),
         ("referrer-policy", "strict-origin-when-cross-origin"),
-        ("permissions-policy", "geolocation=(), microphone=(), camera=()"),
+        (
+            "permissions-policy",
+            "geolocation=(), microphone=(), camera=()",
+        ),
         ("cross-origin-opener-policy", "same-origin"),
         ("cross-origin-resource-policy", "same-origin"),
-        ("strict-transport-security", "max-age=31536000; includeSubDomains"),
+        (
+            "strict-transport-security",
+            "max-age=31536000; includeSubDomains",
+        ),
     ] {
         headers.insert(key, value.parse().unwrap());
     }
@@ -194,9 +200,11 @@ async fn proxy_request(
         .and_then(|h| h.to_str().ok())
         .unwrap_or("localhost");
 
-    let mut raw_request =
-        format!("{} {} HTTP/1.1\r\nhost: {}\r\n", parts.method, path_and_query, host_header)
-            .into_bytes();
+    let mut raw_request = format!(
+        "{} {} HTTP/1.1\r\nhost: {}\r\n",
+        parts.method, path_and_query, host_header
+    )
+    .into_bytes();
 
     for (key, value) in parts.headers.iter().filter(|(k, _)| *k != "host") {
         let Ok(value_str) = value.to_str() else {
@@ -303,7 +311,10 @@ struct SshClientHandler {
 
 impl SshClientHandler {
     fn new(registry: Registry) -> Self {
-        Self { registry, token: None }
+        Self {
+            registry,
+            token: None,
+        }
     }
 
     fn ensure_token(&mut self) -> &str {
@@ -334,10 +345,7 @@ impl Handler for SshClientHandler {
         let inner = format!("  QuickTunnel  ▸  {}  ", url);
         let width = inner.chars().count();
         let line = "─".repeat(width);
-        let banner = format!(
-            "\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n",
-            line, inner, line
-        );
+        let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n", line, inner, line);
         async move { Ok(Some(banner)) }
     }
 
@@ -377,7 +385,11 @@ impl Handler for SshClientHandler {
         }
     }
 
-    async fn channel_close(&mut self, _channel: ChannelId, _session: &mut Session) -> Result<(), Self::Error> {
+    async fn channel_close(
+        &mut self,
+        _channel: ChannelId,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 }
