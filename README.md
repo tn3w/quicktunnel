@@ -96,13 +96,7 @@ The tunnel is live in under a second. No handshake dance, no dashboard to naviga
 
 ## How It Works
 
-<table>
-<tr>
-<td width="33%" align="center" valign="top">
-
-**STEP 01**
-
-#### Run the command
+**STEP 01 — Run the command**
 
 ```bash
 ssh -oStrictHostKeyChecking=no \
@@ -112,12 +106,7 @@ ssh -oStrictHostKeyChecking=no \
 
 SSH is pre-installed on all major operating systems. No extra software required.
 
-</td>
-<td width="33%" align="center" valign="top">
-
-**STEP 02**
-
-#### Get your URL
+**STEP 02 — Get your URL**
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -127,12 +116,7 @@ SSH is pre-installed on all major operating systems. No extra software required.
 
 The server responds instantly with a unique public URL. Share it with anyone.
 
-</td>
-<td width="33%" align="center" valign="top">
-
-**STEP 03**
-
-#### Close to stop
+**STEP 03 — Close to stop**
 
 ```bash
 ^C
@@ -141,10 +125,6 @@ The server responds instantly with a unique public URL. Share it with anyone.
 ```
 
 Hit `Ctrl+C` to terminate. No dangling processes, no data retained.
-
-</td>
-</tr>
-</table>
 
 <br>
 
@@ -241,24 +221,16 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 
 ## Self-Hosting
 
-<table>
-<tr>
-<td width="33%" valign="top">
-
 **Docker**
 
 ```bash
 docker build -t quicktunnel .
-
 docker run \
   -p 22:22 \
   -p 80:8080 \
   -p 3000:3000 \
   quicktunnel
 ```
-
-</td>
-<td width="33%" valign="top">
 
 **Docker Compose**
 
@@ -268,22 +240,14 @@ docker-compose up -d
 
 Edit `docker-compose.yml` to configure ports and key volume.
 
-</td>
-<td width="33%" valign="top">
-
 **From Source**
 
 ```bash
 cargo build --release
-
 ./target/release/quicktunnel
 ```
 
 Requires Rust 1.70+ and OpenSSL dev libs.
-
-</td>
-</tr>
-</table>
 
 **Port map:**
 
