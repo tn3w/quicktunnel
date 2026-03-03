@@ -12,6 +12,7 @@ RUN cargo build --release --target x86_64-unknown-linux-musl
 FROM scratch
 
 COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/quicktunnel /quicktunnel
+COPY dist /dist
 
 EXPOSE 3000 8080 22
 

@@ -251,6 +251,16 @@ cargo build --release
 
 Requires Rust 1.70+ and OpenSSL dev libs.
 
+**Building Templates**
+
+To rebuild the landing page after making changes to `templates/index.html`, `static/app.js`, or `static/style.css`:
+
+```bash
+npx -y html-build-tool
+```
+
+The `-y` flag automatically accepts the package installation prompt. This tool minifies HTML/CSS/JS, inlines local resources, and generates Subresource Integrity (SRI) hashes for security. The built output is written to `dist/`.
+
 **Port map:**
 
 | Port | Service | Purpose |

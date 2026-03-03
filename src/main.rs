@@ -138,7 +138,7 @@ fn index_security_headers() -> HeaderMap {
 }
 
 async fn serve_index() -> Response {
-    let html = std::fs::read_to_string("index.html").unwrap_or_default();
+    let html = std::fs::read_to_string("./dist/index.html").unwrap_or_default();
     (index_security_headers(), html).into_response()
 }
 
