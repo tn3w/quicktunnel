@@ -213,10 +213,6 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 - **KEX** — `mlkem768x25519-sha256` (post-quantum hybrid) via `russh::Preferred`.
 - **Auth** — `auth_none`, `auth_password`, and `auth_publickey` all return `Accept`. No credentials required.
 
-**Security headers added by the proxy on all responses:**
-
-`X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Content-Security-Policy`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`.
-
 <br>
 
 ## Self-Hosting
@@ -229,6 +225,7 @@ docker run \
   -p 22:22 \
   -p 80:8080 \
   -p 3000:3000 \
+  -e TUNNEL_DOMAIN=yourdomain.com \
   quicktunnel
 ```
 
@@ -238,7 +235,12 @@ docker run \
 docker-compose up -d
 ```
 
-Edit `docker-compose.yml` to configure ports and key volume.
+Edit `docker-compose.yml` to configure ports, domain, and key volume:
+
+```yaml
+environment:
+  - TUNNEL_DOMAIN=yourdomain.com  # Change to your domain
+```
 
 **From Source**
 
@@ -259,6 +261,8 @@ Requires Rust 1.70+ and OpenSSL dev libs.
 
 **Custom domain setup:**
 
-1. In `src/main.rs`, replace every occurrence of `t.tn3w.dev` with your domain.
+1. Set the `TUNNEL_DOMAIN` environment variable to your domain (e.g., `TUNNEL_DOMAIN=yourdomain.com`)
 2. Add a DNS wildcard record: `*.yourdomain.com → your-server-ip`
-3. (Optional) Place a TLS-terminating reverse proxy (e.g. Caddy, nginx) in front of `:8080`.
+3. (Optional) Place a TLS-terminating reverse proxy (e.g. Caddy, nginx) in front of `:8080`
+
+The domain defaults to `t.tn3w.dev` if not specified.

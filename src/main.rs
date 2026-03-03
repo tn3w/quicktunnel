@@ -26,6 +26,10 @@ struct Tunnel {
     handle: Handle,
 }
 
+fn get_tunnel_domain() -> String {
+    std::env::var("TUNNEL_DOMAIN").unwrap_or_else(|_| "t.tn3w.dev".to_string())
+}
+
 fn generate_token(registry: &Registry) -> String {
     const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -58,14 +62,12 @@ fn register_tunnel(registry: &Registry) -> String {
 }
 
 fn token_from_host(host: &str) -> Option<String> {
-    let parts: Vec<&str> = host.split('.').collect();
+    let domain = get_tunnel_domain();
+    let suffix = format!(".{}", domain);
 
-    let valid = parts.len() >= 4
-        && parts[parts.len() - 3] == "t"
-        && parts[parts.len() - 2] == "tn3w"
-        && parts[parts.len() - 1] == "dev";
-
-    valid.then(|| parts[0].to_string())
+    host.strip_suffix(&suffix)
+        .filter(|token| !token.is_empty() && !token.contains('.'))
+        .map(|token| token.to_string())
 }
 
 fn decode_chunked_body(data: &[u8]) -> Result<Vec<u8>, ()> {
@@ -327,7 +329,8 @@ impl Handler for SshClientHandler {
         &mut self,
     ) -> impl Future<Output = Result<Option<String>, Self::Error>> + Send {
         let token = self.ensure_token().to_string();
-        let url = format!("https://{}.t.tn3w.dev", token);
+        let domain = get_tunnel_domain();
+        let url = format!("https://{}.{}", token, domain);
         let inner = format!("  QuickTunnel  ▸  {}  ", url);
         let width = inner.chars().count();
         let line = "─".repeat(width);
