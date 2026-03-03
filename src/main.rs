@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use axum::{
     Router,
@@ -12,7 +12,10 @@ use axum::{
     response::{IntoResponse, Response},
     routing::any,
 };
-use russh::keys::{Algorithm, PrivateKey, ssh_key, ssh_key::rand_core::OsRng};
+use russh::keys::{
+    Algorithm, PrivateKey, ssh_key,
+    ssh_key::rand_core::{OsRng, RngCore},
+};
 use russh::server::{Auth, Config, Handle, Handler, Server, Session};
 use russh::{ChannelId, ChannelMsg, Preferred, kex};
 use tokio::net::TcpListener;
@@ -26,28 +29,21 @@ struct Tunnel {
     handle: Handle,
 }
 
-fn get_tunnel_domain() -> String {
+fn tunnel_domain() -> String {
     std::env::var("TUNNEL_DOMAIN").unwrap_or_else(|_| "t.tn3w.dev".to_string())
 }
 
-fn generate_token(registry: &Registry) -> String {
-    const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-
-    let seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.subsec_nanos() as u64 ^ d.as_secs().wrapping_mul(0x9e3779b97f4a7c15))
-        .unwrap_or(0xdeadbeefcafebabe);
-
-    let mut state = seed;
-    let mut next_char = || -> char {
-        state = state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        CHARS[state as usize % CHARS.len()] as char
-    };
+fn generate_unique_token(registry: &Registry) -> String {
+    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
     loop {
-        let token: String = (0..6).map(|_| next_char()).collect();
+        let mut random_bytes = [0u8; 6];
+        OsRng.fill_bytes(&mut random_bytes);
+
+        let token: String = random_bytes
+            .iter()
+            .map(|&byte| CHARSET[byte as usize % CHARSET.len()] as char)
+            .collect();
 
         if !registry.read().unwrap().contains_key(&token) {
             return token;
@@ -55,32 +51,31 @@ fn generate_token(registry: &Registry) -> String {
     }
 }
 
-fn register_tunnel(registry: &Registry) -> String {
-    let token = generate_token(registry);
+fn register_new_tunnel(registry: &Registry) -> String {
+    let token = generate_unique_token(registry);
     registry.write().unwrap().insert(token.clone(), None);
     token
 }
 
-fn token_from_host(host: &str) -> Option<String> {
-    let domain = get_tunnel_domain();
-    let suffix = format!(".{}", domain);
+fn extract_token_from_host(host: &str) -> Option<String> {
+    let suffix = format!(".{}", tunnel_domain());
 
     host.strip_suffix(&suffix)
-        .filter(|token| !token.is_empty() && !token.contains('.'))
-        .map(|token| token.to_string())
+        .filter(|subdomain| !subdomain.is_empty() && !subdomain.contains('.'))
+        .map(str::to_string)
 }
 
 fn decode_chunked_body(data: &[u8]) -> Result<Vec<u8>, ()> {
     let mut output = Vec::new();
-    let mut pos = 0;
+    let mut position = 0;
 
     loop {
-        let crlf = data[pos..]
+        let crlf_offset = data[position..]
             .windows(2)
-            .position(|w| w == b"\r\n")
+            .position(|window| window == b"\r\n")
             .ok_or(())?;
 
-        let size_hex = std::str::from_utf8(&data[pos..pos + crlf])
+        let size_str = std::str::from_utf8(&data[position..position + crlf_offset])
             .map_err(|_| ())?
             .trim()
             .split(';')
@@ -88,33 +83,31 @@ fn decode_chunked_body(data: &[u8]) -> Result<Vec<u8>, ()> {
             .ok_or(())?
             .trim();
 
-        let chunk_size = usize::from_str_radix(size_hex, 16).map_err(|_| ())?;
+        let chunk_size = usize::from_str_radix(size_str, 16).map_err(|_| ())?;
 
         if chunk_size == 0 {
-            break;
+            return Ok(output);
         }
 
-        pos += crlf + 2;
+        position += crlf_offset + 2;
 
-        if pos + chunk_size > data.len() {
+        if position + chunk_size > data.len() {
             return Err(());
         }
 
-        output.extend_from_slice(&data[pos..pos + chunk_size]);
-        pos += chunk_size + 2;
+        output.extend_from_slice(&data[position..position + chunk_size]);
+        position += chunk_size + 2;
     }
-
-    Ok(output)
 }
 
 fn bad_gateway(message: &str) -> Response {
     (StatusCode::BAD_GATEWAY, message.to_string()).into_response()
 }
 
-fn security_headers() -> HeaderMap {
+fn index_security_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
 
-    for (key, value) in [
+    for (name, value) in [
         ("content-type", "text/html; charset=utf-8"),
         ("x-content-type-options", "nosniff"),
         ("x-frame-options", "DENY"),
@@ -138,7 +131,7 @@ fn security_headers() -> HeaderMap {
             "max-age=31536000; includeSubDomains",
         ),
     ] {
-        headers.insert(key, value.parse().unwrap());
+        headers.insert(name, value.parse().unwrap());
     }
 
     headers
@@ -146,114 +139,93 @@ fn security_headers() -> HeaderMap {
 
 async fn serve_index() -> Response {
     let html = std::fs::read_to_string("index.html").unwrap_or_default();
-    (security_headers(), html).into_response()
+    (index_security_headers(), html).into_response()
 }
 
-async fn proxy_request(
-    State(registry): State<Registry>,
-    request_headers: HeaderMap,
-    request: Request,
-) -> Response {
-    let host = request_headers
-        .get("host")
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("");
+fn resolve_tunnel_for_host(registry: &Registry, host: &str) -> Result<Tunnel, Box<Response>> {
+    let token = extract_token_from_host(host)
+        .ok_or_else(|| Box::new(bad_gateway("Invalid subdomain format")))?;
 
-    let token = match token_from_host(host) {
-        Some(token) => token,
-        None => return bad_gateway("Invalid subdomain format"),
-    };
+    match registry.read().unwrap().get(&token).cloned() {
+        Some(Some(tunnel)) => Ok(tunnel),
+        Some(None) => Err(Box::new(bad_gateway("Tunnel not yet connected"))),
+        None => Err(Box::new(bad_gateway("Tunnel not found"))),
+    }
+}
 
-    let tunnel = match registry.read().unwrap().get(&token).cloned() {
-        Some(Some(tunnel)) => tunnel,
-        Some(None) => return bad_gateway("Tunnel not yet connected"),
-        None => return bad_gateway("Tunnel not found"),
-    };
-
-    let mut channel = match tunnel
-        .handle
-        .channel_open_forwarded_tcpip(tunnel.host, tunnel.port as u32, "127.0.0.1", 0)
-        .await
-    {
-        Ok(channel) => channel,
-        Err(_) => return bad_gateway("Failed to open tunnel channel"),
-    };
-
-    let (parts, body) = request.into_parts();
-
-    const MAX_BODY: usize = 10 * 1024 * 1024;
-
-    let body_bytes = match axum::body::to_bytes(body, MAX_BODY).await {
-        Ok(bytes) => bytes,
-        Err(_) => return bad_gateway("Request body too large"),
-    };
-
-    let path_and_query = parts
-        .uri
+fn build_raw_http_request<B>(request: &Request<B>, body_bytes: &[u8]) -> Vec<u8> {
+    let path_and_query = request
+        .uri()
         .path_and_query()
         .map(|pq| pq.as_str())
         .unwrap_or("/");
 
-    let host_header = parts
-        .headers
+    let host_header = request
+        .headers()
         .get("host")
-        .and_then(|h| h.to_str().ok())
+        .and_then(|value| value.to_str().ok())
         .unwrap_or("localhost");
 
-    let mut raw_request = format!(
+    let mut raw = format!(
         "{} {} HTTP/1.1\r\nhost: {}\r\n",
-        parts.method, path_and_query, host_header
+        request.method(),
+        path_and_query,
+        host_header,
     )
     .into_bytes();
 
-    for (key, value) in parts.headers.iter().filter(|(k, _)| *k != "host") {
+    for (name, value) in request.headers().iter().filter(|(name, _)| *name != "host") {
         let Ok(value_str) = value.to_str() else {
             continue;
         };
 
-        if key.as_str().len() + value_str.len() <= 8192 {
-            raw_request.extend_from_slice(format!("{}: {}\r\n", key, value_str).as_bytes());
+        if name.as_str().len() + value_str.len() <= 8192 {
+            raw.extend_from_slice(format!("{}: {}\r\n", name, value_str).as_bytes());
         }
     }
 
-    raw_request.extend_from_slice(b"\r\n");
-    raw_request.extend_from_slice(&body_bytes);
+    raw.extend_from_slice(b"\r\n");
+    raw.extend_from_slice(body_bytes);
+    raw
+}
 
-    if channel.data(raw_request.as_slice()).await.is_err() {
-        return bad_gateway("Failed to send request through tunnel");
-    }
+async fn collect_tunnel_response(
+    channel: &mut russh::Channel<russh::server::Msg>,
+) -> Result<Vec<u8>, Box<Response>> {
+    const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024;
+    const RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
 
     let mut raw_response: Vec<u8> = Vec::with_capacity(65536);
 
-    const MAX_RESPONSE: usize = 50 * 1024 * 1024;
-    const RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
-
     loop {
-        if raw_response.len() > MAX_RESPONSE {
-            return bad_gateway("Response too large");
+        if raw_response.len() > MAX_RESPONSE_BYTES {
+            return Err(Box::new(bad_gateway("Response too large")));
         }
 
         match tokio::time::timeout(RESPONSE_TIMEOUT, channel.wait()).await {
             Ok(Some(ChannelMsg::Data { ref data })) => raw_response.extend_from_slice(data),
             Ok(Some(ChannelMsg::Eof)) | Ok(None) => break,
             Ok(_) => continue,
-            Err(_) => return bad_gateway("Tunnel response timed out"),
+            Err(_) => return Err(Box::new(bad_gateway("Tunnel response timed out"))),
         }
     }
 
     if raw_response.is_empty() {
-        return bad_gateway("Empty response from tunnel");
+        return Err(Box::new(bad_gateway("Empty response from tunnel")));
     }
 
-    let header_end = match raw_response.windows(4).position(|w| w == b"\r\n\r\n") {
-        Some(pos) if pos > 0 => pos,
-        _ => return bad_gateway("Malformed HTTP response"),
-    };
+    Ok(raw_response)
+}
 
-    let header_str = match std::str::from_utf8(&raw_response[..header_end]) {
-        Ok(text) => text,
-        Err(_) => return bad_gateway("Invalid response headers"),
-    };
+fn parse_tunnel_response(raw_response: Vec<u8>) -> Result<Response, Box<Response>> {
+    let header_end = raw_response
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .filter(|&position| position > 0)
+        .ok_or_else(|| Box::new(bad_gateway("Malformed HTTP response")))?;
+
+    let header_str = std::str::from_utf8(&raw_response[..header_end])
+        .map_err(|_| Box::new(bad_gateway("Invalid response headers")))?;
 
     let response_body = &raw_response[header_end + 4..];
     let mut header_lines = header_str.lines();
@@ -291,17 +263,63 @@ async fn proxy_request(
     }
 
     let final_body = if is_chunked {
-        match decode_chunked_body(response_body) {
-            Ok(decoded) => decoded,
-            Err(_) => return bad_gateway("Failed to decode chunked response"),
-        }
+        decode_chunked_body(response_body)
+            .map_err(|_| Box::new(bad_gateway("Failed to decode chunked response")))?
     } else {
         response_body.to_vec()
     };
 
     builder
         .body(Body::from(final_body))
-        .unwrap_or_else(|_| bad_gateway("Failed to construct response"))
+        .map_err(|_| Box::new(bad_gateway("Failed to construct response")))
+}
+
+async fn proxy_request(
+    State(registry): State<Registry>,
+    request_headers: HeaderMap,
+    request: Request,
+) -> Response {
+    let host = request_headers
+        .get("host")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+
+    let tunnel = match resolve_tunnel_for_host(&registry, host) {
+        Ok(tunnel) => tunnel,
+        Err(error_response) => return *error_response,
+    };
+
+    let mut channel = match tunnel
+        .handle
+        .channel_open_forwarded_tcpip(tunnel.host, tunnel.port as u32, "127.0.0.1", 0)
+        .await
+    {
+        Ok(channel) => channel,
+        Err(_) => return bad_gateway("Failed to open tunnel channel"),
+    };
+
+    let (request_parts, request_body) = request.into_parts();
+    let request = Request::from_parts(request_parts, ());
+
+    const MAX_BODY_BYTES: usize = 10 * 1024 * 1024;
+
+    let body_bytes = match axum::body::to_bytes(request_body, MAX_BODY_BYTES).await {
+        Ok(bytes) => bytes,
+        Err(_) => return bad_gateway("Request body too large"),
+    };
+
+    let raw_request = build_raw_http_request(&request, &body_bytes);
+
+    if channel.data(raw_request.as_slice()).await.is_err() {
+        return bad_gateway("Failed to send request through tunnel");
+    }
+
+    let raw_response = match collect_tunnel_response(&mut channel).await {
+        Ok(response) => response,
+        Err(error_response) => return *error_response,
+    };
+
+    parse_tunnel_response(raw_response).unwrap_or_else(|error_response| *error_response)
 }
 
 struct SshClientHandler {
@@ -317,9 +335,9 @@ impl SshClientHandler {
         }
     }
 
-    fn ensure_token(&mut self) -> &str {
+    fn get_or_create_token(&mut self) -> &str {
         if self.token.is_none() {
-            self.token = Some(register_tunnel(&self.registry));
+            self.token = Some(register_new_tunnel(&self.registry));
         }
         self.token.as_deref().unwrap()
     }
@@ -339,13 +357,12 @@ impl Handler for SshClientHandler {
     fn authentication_banner(
         &mut self,
     ) -> impl Future<Output = Result<Option<String>, Self::Error>> + Send {
-        let token = self.ensure_token().to_string();
-        let domain = get_tunnel_domain();
-        let url = format!("https://{}.{}", token, domain);
+        let token = self.get_or_create_token().to_string();
+        let url = format!("https://{}.{}", token, tunnel_domain());
         let inner = format!("  QuickTunnel  ▸  {}  ", url);
-        let width = inner.chars().count();
-        let line = "─".repeat(width);
-        let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n", line, inner, line);
+        let border = "─".repeat(inner.chars().count());
+        let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n", border, inner, border);
+
         async move { Ok(Some(banner)) }
     }
 
@@ -371,7 +388,7 @@ impl Handler for SshClientHandler {
         port: &mut u32,
         session: &mut Session,
     ) -> impl Future<Output = Result<bool, Self::Error>> + Send {
-        let token = self.ensure_token().to_string();
+        let token = self.get_or_create_token().to_string();
         let tunnel = Tunnel {
             host: address.to_string(),
             port: *port as u16,
@@ -416,8 +433,8 @@ fn load_or_create_host_key(path: &Path) -> Result<PrivateKey, Box<dyn std::error
     }
 
     let key = PrivateKey::random(&mut OsRng, Algorithm::Ed25519)?;
-    let pem = key.to_openssh(ssh_key::LineEnding::LF)?;
-    std::fs::write(path, pem.as_bytes())?;
+
+    std::fs::write(path, key.to_openssh(ssh_key::LineEnding::LF)?.as_bytes())?;
 
     #[cfg(unix)]
     {

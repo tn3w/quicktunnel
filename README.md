@@ -1,6 +1,6 @@
 <div align="center">
 
-# QuickTunnel
+# 🔁 QuickTunnel
 
 **SSH reverse tunneling — no install required**
 
@@ -206,7 +206,7 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 **Key implementation details:**
 
 - **Registry** — `Arc<RwLock<HashMap<String, Option<Tunnel>>>>` maps tokens to tunnel metadata. Auto-cleanup on SSH disconnect via `Drop`.
-- **Token generation** — 6-character alphanumeric token seeded from `SystemTime` nanoseconds with an LCG. Collision-checked against the registry.
+- **Token generation** — 6-character alphanumeric token using `OsRng` for cryptographically secure randomness. Collision-checked against the registry.
 - **Chunked transfer encoding** — Proxy decodes chunked HTTP responses from upstream before forwarding to the client.
 - **Limits** — Request body: 10 MB. Response body: 50 MB. Response timeout: 30 seconds.
 - **Host key** — Ed25519, persisted to `/app/keys/ssh_host_ed25519_key`. Generated on first run.
