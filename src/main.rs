@@ -20,6 +20,8 @@ use russh::server::{Auth, Config, Handle, Handler, Server, Session};
 use russh::{ChannelId, ChannelMsg, Preferred, kex};
 use tokio::net::TcpListener;
 
+mod errors;
+
 type Registry = Arc<RwLock<HashMap<String, Option<Tunnel>>>>;
 
 #[derive(Clone)]
@@ -100,11 +102,7 @@ fn decode_chunked_body(data: &[u8]) -> Result<Vec<u8>, ()> {
     }
 }
 
-fn bad_gateway(message: &str) -> Response {
-    (StatusCode::BAD_GATEWAY, message.to_string()).into_response()
-}
-
-fn index_security_headers() -> HeaderMap {
+fn security_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
 
     for (name, value) in [
@@ -139,17 +137,27 @@ fn index_security_headers() -> HeaderMap {
 
 async fn serve_index() -> Response {
     let html = std::fs::read_to_string("./dist/index.html").unwrap_or_default();
-    (index_security_headers(), html).into_response()
+    (security_headers(), html).into_response()
+}
+
+async fn serve_404() -> Response {
+    let html = std::fs::read_to_string("./templates/404.html")
+        .unwrap_or_else(|_| "<h1>404 Not Found</h1>".to_string());
+    (StatusCode::NOT_FOUND, security_headers(), html).into_response()
 }
 
 fn resolve_tunnel_for_host(registry: &Registry, host: &str) -> Result<Tunnel, Box<Response>> {
+    let tunnel_domain = tunnel_domain();
     let token = extract_token_from_host(host)
-        .ok_or_else(|| Box::new(bad_gateway("Invalid subdomain format")))?;
+        .ok_or_else(|| Box::new(errors::tunnel_not_found_error(host, &tunnel_domain)))?;
 
     match registry.read().unwrap().get(&token).cloned() {
         Some(Some(tunnel)) => Ok(tunnel),
-        Some(None) => Err(Box::new(bad_gateway("Tunnel not yet connected"))),
-        None => Err(Box::new(bad_gateway("Tunnel not found"))),
+        Some(None) => Err(Box::new(errors::tunnel_not_connected_error(&tunnel_domain))),
+        None => Err(Box::new(errors::tunnel_not_found_error(
+            host,
+            &tunnel_domain,
+        ))),
     }
 }
 
@@ -191,6 +199,7 @@ fn build_raw_http_request<B>(request: &Request<B>, body_bytes: &[u8]) -> Vec<u8>
 
 async fn collect_tunnel_response(
     channel: &mut russh::Channel<russh::server::Msg>,
+    tunnel_domain: &str,
 ) -> Result<Vec<u8>, Box<Response>> {
     const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024;
     const RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -199,33 +208,36 @@ async fn collect_tunnel_response(
 
     loop {
         if raw_response.len() > MAX_RESPONSE_BYTES {
-            return Err(Box::new(bad_gateway("Response too large")));
+            return Err(Box::new(errors::response_too_large_error(tunnel_domain)));
         }
 
         match tokio::time::timeout(RESPONSE_TIMEOUT, channel.wait()).await {
             Ok(Some(ChannelMsg::Data { ref data })) => raw_response.extend_from_slice(data),
             Ok(Some(ChannelMsg::Eof)) | Ok(None) => break,
             Ok(_) => continue,
-            Err(_) => return Err(Box::new(bad_gateway("Tunnel response timed out"))),
+            Err(_) => return Err(Box::new(errors::tunnel_timeout_error(tunnel_domain))),
         }
     }
 
     if raw_response.is_empty() {
-        return Err(Box::new(bad_gateway("Empty response from tunnel")));
+        return Err(Box::new(errors::empty_response_error(tunnel_domain)));
     }
 
     Ok(raw_response)
 }
 
-fn parse_tunnel_response(raw_response: Vec<u8>) -> Result<Response, Box<Response>> {
+fn parse_tunnel_response(
+    raw_response: Vec<u8>,
+    tunnel_domain: &str,
+) -> Result<Response, Box<Response>> {
     let header_end = raw_response
         .windows(4)
         .position(|window| window == b"\r\n\r\n")
         .filter(|&position| position > 0)
-        .ok_or_else(|| Box::new(bad_gateway("Malformed HTTP response")))?;
+        .ok_or_else(|| Box::new(errors::malformed_response_error(tunnel_domain)))?;
 
     let header_str = std::str::from_utf8(&raw_response[..header_end])
-        .map_err(|_| Box::new(bad_gateway("Invalid response headers")))?;
+        .map_err(|_| Box::new(errors::invalid_headers_error(tunnel_domain)))?;
 
     let response_body = &raw_response[header_end + 4..];
     let mut header_lines = header_str.lines();
@@ -264,14 +276,14 @@ fn parse_tunnel_response(raw_response: Vec<u8>) -> Result<Response, Box<Response
 
     let final_body = if is_chunked {
         decode_chunked_body(response_body)
-            .map_err(|_| Box::new(bad_gateway("Failed to decode chunked response")))?
+            .map_err(|_| Box::new(errors::chunked_decode_error(tunnel_domain)))?
     } else {
         response_body.to_vec()
     };
 
     builder
         .body(Body::from(final_body))
-        .map_err(|_| Box::new(bad_gateway("Failed to construct response")))
+        .map_err(|_| Box::new(errors::response_construction_error(tunnel_domain)))
 }
 
 async fn proxy_request(
@@ -279,6 +291,8 @@ async fn proxy_request(
     request_headers: HeaderMap,
     request: Request,
 ) -> Response {
+    let tunnel_domain = tunnel_domain();
+
     let host = request_headers
         .get("host")
         .and_then(|value| value.to_str().ok())
@@ -291,11 +305,13 @@ async fn proxy_request(
 
     let mut channel = match tunnel
         .handle
-        .channel_open_forwarded_tcpip(tunnel.host, tunnel.port as u32, "127.0.0.1", 0)
+        .channel_open_forwarded_tcpip(tunnel.host.clone(), tunnel.port as u32, "127.0.0.1", 0)
         .await
     {
         Ok(channel) => channel,
-        Err(_) => return bad_gateway("Failed to open tunnel channel"),
+        Err(e) => {
+            return errors::upstream_connection_failed_error(Some(&e.to_string()), &tunnel_domain);
+        }
     };
 
     let (request_parts, request_body) = request.into_parts();
@@ -305,21 +321,22 @@ async fn proxy_request(
 
     let body_bytes = match axum::body::to_bytes(request_body, MAX_BODY_BYTES).await {
         Ok(bytes) => bytes,
-        Err(_) => return bad_gateway("Request body too large"),
+        Err(_) => return errors::request_body_too_large_error(&tunnel_domain),
     };
 
     let raw_request = build_raw_http_request(&request, &body_bytes);
 
     if channel.data(raw_request.as_slice()).await.is_err() {
-        return bad_gateway("Failed to send request through tunnel");
+        return errors::tunnel_send_failed_error(&tunnel_domain);
     }
 
-    let raw_response = match collect_tunnel_response(&mut channel).await {
+    let raw_response = match collect_tunnel_response(&mut channel, &tunnel_domain).await {
         Ok(response) => response,
         Err(error_response) => return *error_response,
     };
 
-    parse_tunnel_response(raw_response).unwrap_or_else(|error_response| *error_response)
+    parse_tunnel_response(raw_response, &tunnel_domain)
+        .unwrap_or_else(|error_response| *error_response)
 }
 
 struct SshClientHandler {
@@ -471,7 +488,9 @@ fn build_ssh_config(host_key: PrivateKey) -> Arc<Config> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry: Registry = Arc::new(RwLock::new(HashMap::new()));
 
-    let index_router = Router::new().route("/", any(serve_index));
+    let index_router = Router::new()
+        .route("/", any(serve_index))
+        .fallback(serve_404);
     let index_listener = TcpListener::bind("0.0.0.0:3000").await?;
 
     let proxy_router = Router::new()

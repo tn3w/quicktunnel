@@ -189,7 +189,7 @@ Then use: `qtnl 3000` instead of the full SSH command.
 
 ## Architecture
 
-QuickTunnel is a single Rust binary (`main.rs`) running three servers:
+QuickTunnel is a single Rust binary running three servers:
 
 <table>
 <tr>
@@ -204,14 +204,14 @@ Accepts reverse tunnel connections via [`russh`](https://github.com/Eugeny/russh
 
 **Proxy Server** — `:8080`
 
-Handles all `*.t.tn3w.dev` HTTP requests. Extracts the token from the subdomain, looks up the tunnel in the registry, opens a forwarded TCP channel over SSH, and proxies the request/response.
+Handles all `*.t.tn3w.dev` HTTP requests. Extracts the token from the subdomain, looks up the tunnel in the registry, opens a forwarded TCP channel over SSH, and proxies the request/response. Returns detailed error pages for common failure scenarios.
 
 </td>
 <td width="33%" valign="top">
 
 **Index Server** — `:3000`
 
-Serves the landing page (`index.html`) with an interactive port picker and live command generation.
+Serves the landing page (`index.html`) with an interactive port picker and live command generation. Returns a 404 page for non-existent routes.
 
 </td>
 </tr>
@@ -230,6 +230,7 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 - **Token generation** — 6-character alphanumeric token using `OsRng` for cryptographically secure randomness. Collision-checked against the registry.
 - **Chunked transfer encoding** — Proxy decodes chunked HTTP responses from upstream before forwarding to the client.
 - **Limits** — Request body: 10 MB. Response body: 50 MB. Response timeout: 30 seconds.
+- **Error handling** — Dedicated error module (`errors.rs`) provides detailed, user-friendly error pages with visual connection flow diagrams and troubleshooting steps for developers and visitors.
 - **Host key** — Ed25519, persisted to `/app/keys/ssh_host_ed25519_key`. Generated on first run.
 - **KEX** — `mlkem768x25519-sha256` (post-quantum hybrid) via `russh::Preferred`.
 - **Auth** — `auth_none`, `auth_password`, and `auth_publickey` all return `Accept`. No credentials required.
