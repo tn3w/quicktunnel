@@ -254,6 +254,7 @@ header {
 
 .message-icon {
     font-size: 20px;
+    color: var(--warn);
 }
 
 .message-icon svg,
@@ -269,7 +270,7 @@ header {
     letter-spacing: 2px;
     text-transform: uppercase;
     font-weight: 700;
-    color: var(--fg);
+    color: var(--warn);
 }
 
 .message-body {
