@@ -211,7 +211,7 @@ Handles all `*.t.tn3w.dev` HTTP requests. Extracts the token from the subdomain,
 
 **Index Server** — `:3000`
 
-Serves the landing page (`index.html`) with an interactive port picker and live command generation. Returns a 404 page for non-existent routes.
+Serves the landing page (`index.html`) with an interactive port picker and live command generation. Returns a 404 page for non-existent routes. Can be disabled via `INDEX_ENABLED=false` if only tunnel functionality is needed.
 
 </td>
 </tr>
@@ -248,6 +248,25 @@ docker run \
   -p 80:8080 \
   -p 3000:3000 \
   -e TUNNEL_DOMAIN=yourdomain.com \
+  -e INDEX_PORT=3000 \
+  -e PROXY_PORT=8080 \
+  -e SSH_PORT=22 \
+  -e INDEX_ENABLED=true \
+  quicktunnel
+```
+
+Or with custom ports:
+
+```bash
+docker run \
+  -p 2222:2222 \
+  -p 80:9090 \
+  -p 4000:4000 \
+  -e TUNNEL_DOMAIN=yourdomain.com \
+  -e INDEX_PORT=4000 \
+  -e PROXY_PORT=9090 \
+  -e SSH_PORT=2222 \
+  -e INDEX_ENABLED=true \
   quicktunnel
 ```
 
@@ -257,12 +276,30 @@ docker run \
 docker-compose up -d
 ```
 
-Edit `docker-compose.yml` to configure ports, domain, and key volume:
+Edit `docker-compose.yml` or create a `.env` file to configure ports and domain:
 
 ```yaml
 environment:
     - TUNNEL_DOMAIN=yourdomain.com # Change to your domain
+    - INDEX_PORT=3000 # Landing page port (default: 3000)
+    - PROXY_PORT=8080 # Proxy server port (default: 8080)
+    - SSH_PORT=22 # SSH tunnel port (default: 22)
+    - INDEX_ENABLED=true # Enable landing page (default: true)
 ```
+
+Or use a `.env` file:
+
+```env
+TUNNEL_DOMAIN=yourdomain.com
+INDEX_PORT=3000
+PROXY_PORT=8080
+SSH_PORT=22
+INDEX_ENABLED=true
+```
+
+Set `INDEX_ENABLED=false` to disable the landing page server if you only need the tunnel functionality.
+
+Port mappings automatically sync with the environment variables, so you only need to define them once.
 
 **From Source**
 
@@ -283,13 +320,15 @@ npx -y html-build-tool
 
 The `-y` flag automatically accepts the package installation prompt. This tool minifies HTML/CSS/JS, inlines local resources, and generates Subresource Integrity (SRI) hashes for security. The built output is written to `dist/`.
 
-**Port map:**
+**Port configuration:**
 
-|  Port  | Service      | Purpose                                  |
-| :----: | :----------- | :--------------------------------------- |
-|  `22`  | SSH Server   | Accepts tunnel connections               |
-| `8080` | Proxy Server | Handles inbound HTTP (map to `80`/`443`) |
-| `3000` | Index Server | Landing page                             |
+|  Port  | Env Variable | Service      | Purpose                                  |
+| :----: | :----------- | :----------- | :--------------------------------------- |
+|  `22`  | `SSH_PORT`   | SSH Server   | Accepts tunnel connections               |
+| `8080` | `PROXY_PORT` | Proxy Server | Handles inbound HTTP (map to `80`/`443`) |
+| `3000` | `INDEX_PORT` | Index Server | Landing page                             |
+
+All ports can be customized via environment variables. Defaults are shown above.
 
 **Custom domain setup:**
 

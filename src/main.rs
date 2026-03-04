@@ -35,6 +35,34 @@ fn tunnel_domain() -> String {
     std::env::var("TUNNEL_DOMAIN").unwrap_or_else(|_| "t.tn3w.dev".to_string())
 }
 
+fn index_port() -> u16 {
+    std::env::var("INDEX_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(3000)
+}
+
+fn proxy_port() -> u16 {
+    std::env::var("PROXY_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080)
+}
+
+fn ssh_port() -> u16 {
+    std::env::var("SSH_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(22)
+}
+
+fn index_enabled() -> bool {
+    std::env::var("INDEX_ENABLED")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(true)
+}
+
 fn generate_unique_token(registry: &Registry) -> String {
     const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -488,27 +516,17 @@ fn build_ssh_config(host_key: PrivateKey) -> Arc<Config> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry: Registry = Arc::new(RwLock::new(HashMap::new()));
 
-    let index_router = Router::new()
-        .route("/", any(serve_index))
-        .fallback(serve_404);
-    let index_listener = TcpListener::bind("0.0.0.0:3000").await?;
-
     let proxy_router = Router::new()
         .route("/", any(proxy_request))
         .route("/{*path}", any(proxy_request))
         .with_state(registry.clone());
-    let proxy_listener = TcpListener::bind("0.0.0.0:8080").await?;
+    let proxy_listener = TcpListener::bind(format!("0.0.0.0:{}", proxy_port())).await?;
 
     let host_key = load_or_create_host_key(Path::new("/app/keys/ssh_host_ed25519_key"))?;
     let ssh_config = build_ssh_config(host_key);
     let mut ssh_server = TunnelServer { registry };
 
-    tokio::try_join!(
-        tokio::spawn(async move {
-            axum::serve(index_listener, index_router)
-                .await
-                .expect("Index server failed");
-        }),
+    let mut tasks = vec![
         tokio::spawn(async move {
             axum::serve(proxy_listener, proxy_router)
                 .await
@@ -516,11 +534,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         tokio::spawn(async move {
             ssh_server
-                .run_on_address(ssh_config, ("0.0.0.0", 22))
+                .run_on_address(ssh_config, ("0.0.0.0", ssh_port()))
                 .await
                 .expect("SSH server failed");
         }),
-    )?;
+    ];
+
+    if index_enabled() {
+        let index_router = Router::new()
+            .route("/", any(serve_index))
+            .fallback(serve_404);
+        let index_listener = TcpListener::bind(format!("0.0.0.0:{}", index_port())).await?;
+
+        tasks.push(tokio::spawn(async move {
+            axum::serve(index_listener, index_router)
+                .await
+                .expect("Index server failed");
+        }));
+    }
+
+    for task in tasks {
+        task.await?;
+    }
 
     Ok(())
 }
