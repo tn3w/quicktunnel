@@ -11,9 +11,9 @@
 
 <br>
 
-```bash
+<pre align="center">
 ssh -oStrictHostKeyChecking=no -NR 80:localhost:3000 t.tn3w.dev
-```
+</pre>
 
 **Your local server is now public. That's it.**
 
@@ -150,6 +150,27 @@ ssh -oStrictHostKeyChecking=no -NR 80:localhost:4000 t.tn3w.dev
 ```
 
 The pattern is always: `-NR 80:localhost:<YOUR_PORT> t.tn3w.dev`
+
+**Create a shortcut (optional):**
+
+```bash
+# bash / sh
+grep -qxF 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' ~/.bashrc || echo 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' >> ~/.bashrc
+
+# zsh
+grep -qxF 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' ~/.zshrc || echo 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' >> ~/.zshrc
+
+# fish
+grep -qx 'function qtnl; ssh -oStrictHostKeyChecking=no -NR 80:localhost:$argv[1] t.tn3w.dev; end' ~/.config/fish/config.fish || echo 'function qtnl; ssh -oStrictHostKeyChecking=no -NR 80:localhost:$argv[1] t.tn3w.dev; end' >> ~/.config/fish/config.fish
+
+# csh / tcsh
+grep -q 'alias qtnl' ~/.cshrc || echo 'alias qtnl ssh -oStrictHostKeyChecking=no -NR 80:localhost:\!^ t.tn3w.dev' >> ~/.cshrc
+
+# powershell
+if(!(Select-String -Quiet 'qtnl' $PROFILE 2>$null)){ Add-Content $PROFILE 'function qtnl($p){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:$p t.tn3w.dev }' }
+```
+
+Then use: `qtnl 3000` instead of the full SSH command.
 
 <br>
 
