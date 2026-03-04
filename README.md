@@ -5,7 +5,7 @@
 **SSH reverse tunneling — no install required**
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg?style=for-the-badge)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg?style=for-the-badge)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg?style=for-the-badge)](https://www.rust-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg?style=for-the-badge)](Dockerfile)
 [![SSH](https://img.shields.io/badge/transport-SSH-black.svg?style=for-the-badge)](#)
 
@@ -271,14 +271,12 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 
 **Key implementation details:**
 
-- **Registry** — `Arc<RwLock<HashMap<String, Option<Tunnel>>>>` maps tokens to tunnel metadata. Auto-cleanup on SSH disconnect via `Drop`.
-- **Token generation** — 6-character alphanumeric token using `OsRng` for cryptographically secure randomness. Collision-checked against the registry.
-- **Chunked transfer encoding** — Proxy decodes chunked HTTP responses from upstream before forwarding to the client.
-- **Limits** — Request body: 10 MB. Response body: 50 MB. Response timeout: 30 seconds.
-- **Error handling** — Dedicated error module (`errors.rs`) provides detailed, user-friendly error pages with visual connection flow diagrams and troubleshooting steps for developers and visitors.
-- **Host key** — Ed25519, persisted to `/app/keys/ssh_host_ed25519_key`. Generated on first run.
-- **KEX** — `mlkem768x25519-sha256` (post-quantum hybrid) via `russh::Preferred`.
-- **Auth** — `auth_none`, `auth_password`, and `auth_publickey` all return `Accept`. No credentials required.
+- **Registry** — `Arc<RwLock<HashMap<String, Option<Tunnel>>>>` maps tokens to tunnel metadata
+- **Token generation** — 6-character alphanumeric using `OsRng`, collision-checked
+- **Limits** — Request: 10 MB, Response: 50 MB, Timeout: 30s
+- **Host key** — Ed25519, persisted to `/app/keys/ssh_host_ed25519_key`
+- **KEX** — `mlkem768x25519-sha256` (post-quantum hybrid)
+- **Auth** — All methods accept (no credentials required)
 
 <br>
 
@@ -293,25 +291,6 @@ docker run \
   -p 80:8080 \
   -p 3000:3000 \
   -e TUNNEL_DOMAIN=yourdomain.com \
-  -e INDEX_PORT=3000 \
-  -e PROXY_PORT=8080 \
-  -e SSH_PORT=22 \
-  -e INDEX_ENABLED=true \
-  quicktunnel
-```
-
-Or with custom ports:
-
-```bash
-docker run \
-  -p 2222:2222 \
-  -p 80:9090 \
-  -p 4000:4000 \
-  -e TUNNEL_DOMAIN=yourdomain.com \
-  -e INDEX_PORT=4000 \
-  -e PROXY_PORT=9090 \
-  -e SSH_PORT=2222 \
-  -e INDEX_ENABLED=true \
   quicktunnel
 ```
 
@@ -321,30 +300,15 @@ docker run \
 docker-compose up -d
 ```
 
-Edit `docker-compose.yml` or create a `.env` file to configure ports and domain:
-
-```yaml
-environment:
-    - TUNNEL_DOMAIN=yourdomain.com # Change to your domain
-    - INDEX_PORT=3000 # Landing page port (default: 3000)
-    - PROXY_PORT=8080 # Proxy server port (default: 8080)
-    - SSH_PORT=22 # SSH tunnel port (default: 22)
-    - INDEX_ENABLED=true # Enable landing page (default: true)
-```
-
-Or use a `.env` file:
+Configure via `.env` file:
 
 ```env
-TUNNEL_DOMAIN=yourdomain.com
-INDEX_PORT=3000
-PROXY_PORT=8080
-SSH_PORT=22
-INDEX_ENABLED=true
+TUNNEL_DOMAIN=yourdomain.com  # Your domain (default: t.tn3w.dev)
+INDEX_PORT=3000               # Landing page server
+PROXY_PORT=8080               # HTTP proxy (map to 80/443)
+SSH_PORT=22                   # SSH tunnel listener
+INDEX_ENABLED=true            # Set false to disable landing page server
 ```
-
-Set `INDEX_ENABLED=false` to disable the landing page server if you only need the tunnel functionality.
-
-Port mappings automatically sync with the environment variables, so you only need to define them once.
 
 **From Source**
 
@@ -353,32 +317,20 @@ cargo build --release
 ./target/release/quicktunnel
 ```
 
-Requires Rust 1.70+ and OpenSSL dev libs.
+Requires Rust 1.85+.
 
 **Building Templates**
 
-To rebuild the landing page after making changes to `templates/index.html`, `static/app.js`, or `static/style.css`:
+After editing `templates/` or `static/` files, rebuild with:
 
 ```bash
 npx -y html-build-tool
 ```
 
-The `-y` flag automatically accepts the package installation prompt. This tool minifies HTML/CSS/JS, inlines local resources, and generates Subresource Integrity (SRI) hashes for security. The built output is written to `dist/`.
+Outputs minified HTML/CSS/JS with SRI hashes to `dist/`.
 
-**Port configuration:**
+**Custom Domain**
 
-|  Port  | Env Variable | Service      | Purpose                                  |
-| :----: | :----------- | :----------- | :--------------------------------------- |
-|  `22`  | `SSH_PORT`   | SSH Server   | Accepts tunnel connections               |
-| `8080` | `PROXY_PORT` | Proxy Server | Handles inbound HTTP (map to `80`/`443`) |
-| `3000` | `INDEX_PORT` | Index Server | Landing page                             |
-
-All ports can be customized via environment variables. Defaults are shown above.
-
-**Custom domain setup:**
-
-1. Set the `TUNNEL_DOMAIN` environment variable to your domain (e.g., `TUNNEL_DOMAIN=yourdomain.com`)
-2. Add a DNS wildcard record: `*.yourdomain.com → your-server-ip`
-3. (Optional) Place a TLS-terminating reverse proxy (e.g. Caddy, nginx) in front of `:8080`
-
-The domain defaults to `t.tn3w.dev` if not specified.
+1. Set `TUNNEL_DOMAIN=yourdomain.com`
+2. Add DNS wildcard: `*.yourdomain.com → your-server-ip`
+3. (Optional) Add TLS proxy (Caddy/nginx) in front of `:8080`
