@@ -153,107 +153,36 @@
                         <div class="cmd-part-token">ssh</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">OpenSSH client</div>
-                        <p class="cmd-part-desc">
-                            Pre-installed on Linux, macOS, Windows 10+. No download needed.
-                        </p>
+                        <p class="cmd-part-desc">Pre-installed on Linux, macOS, Windows 10+. No download needed.</p>
                     </div>
                     <div class="cmd-part">
                         <div class="cmd-part-token flag">-oStrictHostKeyChecking=no</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">Skip host prompt</div>
-                        <p class="cmd-part-desc">
-                            Suppresses the "Are you sure?" fingerprint prompt on first connect. Safe
-                            for ephemeral tunnels.
-                        </p>
+                        <p class="cmd-part-desc">Suppresses the "Are you sure?" fingerprint prompt on first connect. Safe for ephemeral tunnels.</p>
                     </div>
                     <div class="cmd-part">
                         <div class="cmd-part-token flag">-N</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">No remote command</div>
-                        <p class="cmd-part-desc">
-                            Opens the tunnel only — no shell session, no login, nothing runs on the
-                            server.
-                        </p>
+                        <p class="cmd-part-desc">Opens the tunnel only — no shell session, no login, nothing runs on the server.</p>
                     </div>
                     <div class="cmd-part">
-                        <div class="cmd-part-token flag">
-                            -R 80:localhost:<span class="port-token" id="explain-port">3000</span>
-                        </div>
+                        <div class="cmd-part-token flag">-R 80:localhost:<span class="port-token" id="explain-port">3000</span></div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">Remote port forward</div>
-                        <p class="cmd-part-desc">
-                            Binds port 80 on the server to your local port. Traffic in → your
-                            machine out. That's it.
-                        </p>
+                        <p class="cmd-part-desc">Binds port 80 on the server to your local port. Traffic in → your machine out. That's it.</p>
                     </div>
                     <div class="cmd-part">
                         <div class="cmd-part-token host">t.tn3w.dev</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">Tunnel server</div>
-                        <p class="cmd-part-desc">
-                            The public relay. Assigns you a URL and forwards HTTP traffic to your
-                            tunnel.
-                        </p>
+                        <p class="cmd-part-desc">The public relay. Assigns you a URL and forwards HTTP traffic to your tunnel.</p>
                     </div>
                 </div>
                 <div class="cmd-reassure">
                     <span class="reassure-icon">🔍</span>
-                    <span
-                        >This command opens an <strong>outbound</strong> SSH connection from your
-                        machine — just like visiting a website. It does not give the server access
-                        to your system, files, or any other ports.</span
-                    >
-                </div>
-            </section>
-
-            <section id="subdomains">
-                <div class="section-title">CUSTOM SUBDOMAINS</div>
-                <p class="install-intro">
-                    Pick a subdomain by using it as the SSH username. Your tunnel will be reachable
-                    at that name.
-                </p>
-                <div class="command-box" style="margin-bottom: 16px">
-                    <div class="cmd-header">
-                        <div class="cmd-dots">
-                            <div class="cmd-dot"></div>
-                            <div class="cmd-dot"></div>
-                            <div class="cmd-dot"></div>
-                            <span class="cmd-label">with subdomain</span>
-                        </div>
-                    </div>
-                    <code class="command">
-                        <span class="cmd-kw">ssh</span>
-                        <span class="cmd-host">myproject</span>@t.tn3w.dev
-                        <span class="cmd-flag">-oStrictHostKeyChecking=no</span>
-                        <span class="cmd-flag">-NR</span>
-                        <span class="cmd-port">80</span>:localhost:<span class="cmd-port"
-                            >3000</span
-                        >
-                    </code>
-                </div>
-                <div class="subdomain-cards">
-                    <div class="subdomain-card">
-                        <div class="subdomain-url">myproject.t.tn3w.dev</div>
-                        <p class="cmd-part-desc">
-                            The SSH username becomes your subdomain. No registration, first-come
-                            first-served per session.
-                        </p>
-                    </div>
-                    <div class="subdomain-card">
-                        <div class="subdomain-url">abc123.t.tn3w.dev</div>
-                        <p class="cmd-part-desc">
-                            Default when no username is given — a random code is generated. Use a
-                            custom username for a stable subdomain during your session.
-                        </p>
-                    </div>
-                </div>
-                <div class="cmd-reassure" style="margin-top: 24px">
-                    <span class="reassure-icon">⚠️</span>
-                    <span
-                        >Subdomains are <strong>not reserved</strong> between sessions. If you need
-                        the same URL across reconnects, reconnect with the same username before
-                        someone else claims it.</span
-                    >
+                    <span>This command opens an <strong>outbound</strong> SSH connection from your machine — just like visiting a website. It does not give the server access to your system, files, or any other ports.</span>
                 </div>
             </section>
 
@@ -319,9 +248,7 @@
 
             <section id="install">
                 <div class="section-title">QUICK ALIAS</div>
-                <p class="install-intro">
-                    Install a <code class="inline-code">qtnl</code> alias once — use it everywhere.
-                </p>
+                <p class="install-intro">Install a <code class="inline-code">qtnl</code> alias once — use it everywhere.</p>
                 <div class="install-tabs" id="install-tabs">
                     <button class="install-tab active" data-shell="bash">bash</button>
                     <button class="install-tab" data-shell="zsh">zsh</button>
@@ -341,16 +268,10 @@
                     </div>
                     <code class="command install-command" id="install-command-display"></code>
                 </div>
-                <p class="install-note">
-                    Restart your shell or run <code class="inline-code">source ~/.bashrc</code> (or
-                    the equivalent) after installing. Then tunnel any local port in one command:
-                </p>
-                <div class="step-code" style="margin-top: 12px">
+                <p class="install-note">Restart your shell or run <code class="inline-code">source ~/.bashrc</code> (or the equivalent) after installing. Then tunnel any local port in one command:</p>
+                <div class="step-code" style="margin-top: 12px;">
                     $ <span class="hl">qtnl</span> <span class="hl" id="alias-port-demo">3000</span>
-                    <span style="color: var(--dim)">
-                        # forwards localhost:<span id="alias-port-demo2">3000</span> → public
-                        URL</span
-                    >
+                    <span style="color: var(--dim)"> # forwards localhost:<span id="alias-port-demo2">3000</span> → public URL</span>
                 </div>
             </section>
 
@@ -397,7 +318,7 @@
                         </tr>
                         <tr>
                             <td>Custom subdomains</td>
-                            <td class="yes highlight-col">✓ Free</td>
+                            <td class="meh highlight-col">— Planned</td>
                             <td class="meh">Paid</td>
                             <td class="no">✗ No</td>
                             <td class="meh">Unstable</td>

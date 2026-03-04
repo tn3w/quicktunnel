@@ -151,34 +151,18 @@ ssh -oStrictHostKeyChecking=no -NR 80:localhost:4000 t.tn3w.dev
 
 The pattern is always: `-NR 80:localhost:<YOUR_PORT> t.tn3w.dev`
 
-**Custom subdomains:**
-
-```bash
-# Use your SSH username as the subdomain
-ssh myproject@t.tn3w.dev -oStrictHostKeyChecking=no -NR 80:localhost:3000
-# → https://myproject.t.tn3w.dev
-
-# Requirements:
-# - 7-40 characters
-# - Alphanumeric and hyphens only
-# - Cannot start/end with hyphen
-# - Cannot be generic (user, admin, root, etc.)
-```
-
-If the subdomain is taken or invalid, you'll get a random token instead.
-
 <br>
 
 ## Comparison
 
-| Feature             | **QuickTunnel** |  ngrok   | cloudflared | localtunnel |
-| :------------------ | :-------------: | :------: | :---------: | :---------: |
-| No install required |     **Yes**     |  Binary  |   Binary    |     npm     |
-| No account needed   |     **Yes**     | Required |     Yes     |     Yes     |
-| Open source server  |     **Yes**     |    No    |   Partial   |     Yes     |
-| Encrypted transport |     **SSH**     |   TLS    | QUIC/HTTP2  |     TLS     |
-| WebSocket support   |     **Yes**     |   Yes    |     Yes     |   Partial   |
-| Custom subdomains   |     **Yes**     |   Paid   |     No      |  Unstable   |
+| Feature | **QuickTunnel** | ngrok | cloudflared | localtunnel |
+|:--------|:---:|:---:|:---:|:---:|
+| No install required | **Yes** | Binary | Binary | npm |
+| No account needed | **Yes** | Required | Yes | Yes |
+| Open source server | **Yes** | No | Partial | Yes |
+| Encrypted transport | **SSH** | TLS | QUIC/HTTP2 | TLS |
+| WebSocket support | **Yes** | Yes | Yes | Partial |
+| Custom subdomains | Planned | Paid | No | Unstable |
 
 <br>
 
@@ -223,12 +207,11 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 
 - **Registry** — `Arc<RwLock<HashMap<String, Option<Tunnel>>>>` maps tokens to tunnel metadata. Auto-cleanup on SSH disconnect via `Drop`.
 - **Token generation** — 6-character alphanumeric token using `OsRng` for cryptographically secure randomness. Collision-checked against the registry.
-- **Custom subdomains** — SSH username is validated (7-40 chars, alphanumeric + hyphens, no generic names) and used as subdomain if available. Falls back to random token if taken or invalid.
 - **Chunked transfer encoding** — Proxy decodes chunked HTTP responses from upstream before forwarding to the client.
 - **Limits** — Request body: 10 MB. Response body: 50 MB. Response timeout: 30 seconds.
 - **Host key** — Ed25519, persisted to `/app/keys/ssh_host_ed25519_key`. Generated on first run.
 - **KEX** — `mlkem768x25519-sha256` (post-quantum hybrid) via `russh::Preferred`.
-- **Auth** — `auth_none`, `auth_password`, and `auth_publickey` all return `Accept`. Username is captured for subdomain selection.
+- **Auth** — `auth_none`, `auth_password`, and `auth_publickey` all return `Accept`. No credentials required.
 
 <br>
 
@@ -256,7 +239,7 @@ Edit `docker-compose.yml` to configure ports, domain, and key volume:
 
 ```yaml
 environment:
-    - TUNNEL_DOMAIN=yourdomain.com # Change to your domain
+  - TUNNEL_DOMAIN=yourdomain.com  # Change to your domain
 ```
 
 **From Source**
@@ -280,11 +263,11 @@ The `-y` flag automatically accepts the package installation prompt. This tool m
 
 **Port map:**
 
-|  Port  | Service      | Purpose                                  |
-| :----: | :----------- | :--------------------------------------- |
-|  `22`  | SSH Server   | Accepts tunnel connections               |
+| Port | Service | Purpose |
+|:----:|:--------|:--------|
+| `22` | SSH Server | Accepts tunnel connections |
 | `8080` | Proxy Server | Handles inbound HTTP (map to `80`/`443`) |
-| `3000` | Index Server | Landing page                             |
+| `3000` | Index Server | Landing page |
 
 **Custom domain setup:**
 

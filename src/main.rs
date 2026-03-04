@@ -51,46 +51,10 @@ fn generate_unique_token(registry: &Registry) -> String {
     }
 }
 
-const CUSTOM_SUBDOMAIN_MIN_LENGTH: usize = 7;
-const CUSTOM_SUBDOMAIN_MAX_LENGTH: usize = 40;
-const GENERIC_USERNAMES: &[&str] = &["user", "root", "admin", "tunnel", "ssh", "git", "ubuntu"];
-
-fn validate_custom_subdomain(username: &str) -> Option<String> {
-    let candidate = username.to_ascii_lowercase();
-
-    let length_valid = candidate.len() >= CUSTOM_SUBDOMAIN_MIN_LENGTH
-        && candidate.len() <= CUSTOM_SUBDOMAIN_MAX_LENGTH;
-
-    let chars_valid = candidate
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || character == '-');
-
-    let not_generic = !GENERIC_USERNAMES.contains(&candidate.as_str());
-
-    let not_hyphen_bounded = !candidate.starts_with('-') && !candidate.ends_with('-');
-
-    (length_valid && chars_valid && not_generic && not_hyphen_bounded).then_some(candidate)
-}
-
-fn register_new_tunnel(
-    registry: &Registry,
-    requested_subdomain: Option<&str>,
-) -> Result<String, &'static str> {
-    let mut registry_guard = registry.write().unwrap();
-
-    let token = match requested_subdomain.and_then(validate_custom_subdomain) {
-        Some(custom) if !registry_guard.contains_key(&custom) => custom,
-        Some(_) => return Err("Subdomain already in use"),
-        None => {
-            drop(registry_guard);
-            let token = generate_unique_token(registry);
-            registry.write().unwrap().insert(token.clone(), None);
-            return Ok(token);
-        }
-    };
-
-    registry_guard.insert(token.clone(), None);
-    Ok(token)
+fn register_new_tunnel(registry: &Registry) -> String {
+    let token = generate_unique_token(registry);
+    registry.write().unwrap().insert(token.clone(), None);
+    token
 }
 
 fn extract_token_from_host(host: &str) -> Option<String> {
@@ -174,7 +138,7 @@ fn index_security_headers() -> HeaderMap {
 }
 
 async fn serve_index() -> Response {
-    let html = std::fs::read_to_string("index.html").unwrap_or_default();
+    let html = std::fs::read_to_string("./dist/index.html").unwrap_or_default();
     (index_security_headers(), html).into_response()
 }
 
@@ -360,7 +324,6 @@ async fn proxy_request(
 
 struct SshClientHandler {
     registry: Registry,
-    username: String,
     token: Option<String>,
 }
 
@@ -368,17 +331,15 @@ impl SshClientHandler {
     fn new(registry: Registry) -> Self {
         Self {
             registry,
-            username: String::new(),
             token: None,
         }
     }
 
-    fn get_or_create_token(&mut self) -> Result<&str, &'static str> {
+    fn get_or_create_token(&mut self) -> &str {
         if self.token.is_none() {
-            let requested = Some(self.username.as_str());
-            self.token = Some(register_new_tunnel(&self.registry, requested)?);
+            self.token = Some(register_new_tunnel(&self.registry));
         }
-        Ok(self.token.as_deref().unwrap())
+        self.token.as_deref().unwrap()
     }
 }
 
@@ -396,45 +357,28 @@ impl Handler for SshClientHandler {
     fn authentication_banner(
         &mut self,
     ) -> impl Future<Output = Result<Option<String>, Self::Error>> + Send {
-        let token_result = self.get_or_create_token().map(str::to_string);
-        let domain = tunnel_domain();
+        let token = self.get_or_create_token().to_string();
+        let url = format!("https://{}.{}", token, tunnel_domain());
+        let inner = format!("  QuickTunnel  ▸  {}  ", url);
+        let border = "─".repeat(inner.chars().count());
+        let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n", border, inner, border);
 
-        async move {
-            let token = match token_result {
-                Ok(token) => token,
-                Err(reason) => {
-                    let inner = format!("  Error: {}  ", reason);
-                    let border = "─".repeat(inner.chars().count());
-                    let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n", border, inner, border);
-                    return Ok(Some(banner));
-                }
-            };
-
-            let url = format!("https://{}.{}", token, domain);
-            let inner = format!("  QuickTunnel  ▸  {}  ", url);
-            let border = "─".repeat(inner.chars().count());
-            let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n\r\n", border, inner, border);
-
-            Ok(Some(banner))
-        }
+        async move { Ok(Some(banner)) }
     }
 
-    async fn auth_none(&mut self, user: &str) -> Result<Auth, Self::Error> {
-        self.username = user.to_string();
+    async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
         Ok(Auth::Accept)
     }
 
-    async fn auth_password(&mut self, user: &str, _password: &str) -> Result<Auth, Self::Error> {
-        self.username = user.to_string();
+    async fn auth_password(&mut self, _user: &str, _password: &str) -> Result<Auth, Self::Error> {
         Ok(Auth::Accept)
     }
 
     async fn auth_publickey(
         &mut self,
-        user: &str,
+        _user: &str,
         _public_key: &ssh_key::PublicKey,
     ) -> Result<Auth, Self::Error> {
-        self.username = user.to_string();
         Ok(Auth::Accept)
     }
 
@@ -444,7 +388,7 @@ impl Handler for SshClientHandler {
         port: &mut u32,
         session: &mut Session,
     ) -> impl Future<Output = Result<bool, Self::Error>> + Send {
-        let token_result = self.get_or_create_token().map(str::to_string);
+        let token = self.get_or_create_token().to_string();
         let tunnel = Tunnel {
             host: address.to_string(),
             port: *port as u16,
@@ -453,8 +397,6 @@ impl Handler for SshClientHandler {
         let registry = self.registry.clone();
 
         async move {
-            let token = token_result.map_err(|_| russh::Error::Disconnect)?;
-
             registry.write().unwrap().insert(token, Some(tunnel));
             Ok(true)
         }
