@@ -172,6 +172,51 @@ if(!(Select-String -Quiet 'qtnl' $PROFILE 2>$null)){ Add-Content $PROFILE 'funct
 
 Then use: `qtnl 3000` instead of the full SSH command.
 
+**Quick HTTP server + tunnel (no local server needed):**
+
+If you don't have a local server running, you can start one and tunnel it in a single command:
+
+##### Linux:
+
+```bash
+# Python
+python3 -m http.server 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+
+# Node.js
+npx serve . -l 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+
+# Pure bash (no dependencies)
+(p=8080; while true; do { echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"; cat index.html; } | nc -l -q1 $p; done) & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+```
+
+##### macOS:
+
+```bash
+# Python
+python3 -m http.server 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+
+# Node.js
+npx serve . -l 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+
+# Ruby
+ruby -run -e httpd . -p 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+```
+
+##### Windows:
+
+```powershell
+# Python
+Start-Process python3 -ArgumentList "-m", "http.server", "8080" -NoNewWindow; ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+
+# Node.js
+Start-Process npx -ArgumentList "serve", ".", "-l", "8080" -NoNewWindow; ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+
+# Pure PowerShell (no dependencies)
+Start-Job -ScriptBlock { $p=8080; $l=[Net.HttpListener]::new(); $l.Prefixes.Add("http://+:$p/"); $l.Start(); while($true){$c=$l.GetContext(); $f=Join-Path $pwd $c.Request.Url.LocalPath.TrimStart('/'); $b=if(Test-Path $f){[IO.File]::ReadAllBytes($f)}else{$c.Response.StatusCode=404;@()}; $c.Response.OutputStream.Write($b,0,$b.Length); $c.Response.Close()} }; ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev
+```
+
+These commands start a simple HTTP server on port 8080 and immediately tunnel it. Perfect for quickly sharing static files.
+
 <br>
 
 ## Comparison
