@@ -1037,7 +1037,9 @@ footer {
 .cmd-part::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 1px;
     background: linear-gradient(90deg, var(--accent2), transparent);
     opacity: 0;
@@ -1191,4 +1193,35 @@ footer {
     font-size: 12px;
     color: var(--dim);
     line-height: 1.8;
+}
+
+/* ── Subdomains ── */
+#subdomains {
+    margin-bottom: 120px;
+}
+
+.subdomain-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    margin-top: 16px;
+}
+
+.subdomain-card {
+    background: var(--bg);
+    padding: 28px 28px;
+    transition: background 0.2s;
+}
+
+.subdomain-card:hover {
+    background: var(--bg2);
+}
+
+.subdomain-url {
+    font-family: monospace;
+    font-size: 15px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
 }
