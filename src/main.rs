@@ -141,7 +141,7 @@ async fn serve_index() -> Response {
 }
 
 async fn serve_404() -> Response {
-    let html = std::fs::read_to_string("./templates/404.html")
+    let html = std::fs::read_to_string("./dist/404.html")
         .unwrap_or_else(|_| "<h1>404 Not Found</h1>".to_string());
     (StatusCode::NOT_FOUND, security_headers(), html).into_response()
 }
