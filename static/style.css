@@ -29,6 +29,32 @@ body {
     cursor: crosshair;
 }
 
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: var(--bg);
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 4px;
+    opacity: 0.5;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+    opacity: 1;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--bg);
+}
+
 .tunnel-bg {
     position: fixed;
     inset: 0;
@@ -1186,6 +1212,7 @@ footer {
     overflow-x: auto;
     line-height: 1.8;
     color: var(--fg);
+    padding-bottom: 12px;
 }
 
 .install-note {
@@ -1193,4 +1220,103 @@ footer {
     font-size: 12px;
     color: var(--dim);
     line-height: 1.8;
+}
+
+#share {
+    margin-bottom: 120px;
+}
+
+.os-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.os-tab {
+    font-family: monospace;
+    font-size: 12px;
+    padding: 7px 22px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+}
+
+.os-tab:hover {
+    border-color: var(--accent);
+    color: var(--fg);
+}
+
+.os-tab.active {
+    border-color: var(--accent);
+    background: rgba(57, 255, 126, 0.07);
+    color: var(--accent);
+}
+
+.os-detected {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    opacity: 0;
+    margin-left: 12px;
+    white-space: nowrap;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.os-detected.visible {
+    opacity: 0.6;
+}
+
+.share-variant-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    margin-top: 16px;
+    order: -1;
+}
+
+.share-vtab {
+    font-family: monospace;
+    font-size: 11px;
+    padding: 5px 16px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+}
+
+.share-vtab:hover {
+    border-color: var(--accent2);
+    color: var(--fg);
+}
+
+.share-vtab.active {
+    border-color: var(--accent2);
+    background: rgba(0, 207, 255, 0.07);
+    color: var(--accent2);
+}
+
+.share-variants {
+    display: flex;
+    flex-direction: column;
+}
+
+.share-variant {
+    display: none;
+}
+
+.share-variant.active {
+    display: block;
+}
+
+#share .share-variant-tabs {
+    order: unset;
 }

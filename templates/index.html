@@ -27,6 +27,10 @@
                         ><span class="desktop-text">Why QuickTunnel</span
                         ><span class="mobile-text">Why</span></a
                     >
+                    <a href="#share"
+                        ><span class="desktop-text">Share Folder</span
+                        ><span class="mobile-text">Share</span></a
+                    >
                 </nav>
             </header>
 
@@ -300,6 +304,79 @@
                         # forwards localhost:<span id="alias-port-demo2">3000</span> → public
                         URL</span
                     >
+                </div>
+            </section>
+
+            <section id="share">
+                <div class="section-title">SHARE A FOLDER</div>
+                <p class="install-intro">
+                    Serve your current directory and expose it publicly — one copy-paste.
+                </p>
+                <div class="os-tabs" id="os-tabs">
+                    <button class="os-tab" data-os="linux">Linux</button>
+                    <button class="os-tab" data-os="macos">macOS</button>
+                    <button class="os-tab" data-os="windows">Windows</button>
+                    <span class="os-detected" id="os-detected">detected</span>
+                </div>
+                <div class="share-variants" id="share-variants">
+                    <div class="share-variant active" data-variant="python">
+                        <div class="command-box install-box">
+                            <div class="cmd-header">
+                                <div class="cmd-dots">
+                                    <div class="cmd-dot"></div>
+                                    <div class="cmd-dot"></div>
+                                    <div class="cmd-dot"></div>
+                                    <span class="cmd-label share-shell-label">bash / zsh / sh</span>
+                                </div>
+                                <button class="cmd-copy share-copy-btn">Copy</button>
+                            </div>
+                            <code
+                                class="command install-command share-command"
+                                id="share-cmd-python"
+                            ></code>
+                        </div>
+                    </div>
+                    <div class="share-variant" data-variant="node">
+                        <div class="command-box install-box">
+                            <div class="cmd-header">
+                                <div class="cmd-dots">
+                                    <div class="cmd-dot"></div>
+                                    <div class="cmd-dot"></div>
+                                    <div class="cmd-dot"></div>
+                                    <span class="cmd-label share-shell-label">bash / zsh / sh</span>
+                                </div>
+                                <button class="cmd-copy share-copy-btn">Copy</button>
+                            </div>
+                            <code
+                                class="command install-command share-command"
+                                id="share-cmd-node"
+                            ></code>
+                        </div>
+                    </div>
+                    <div class="share-variant" data-variant="native">
+                        <div class="command-box install-box">
+                            <div class="cmd-header">
+                                <div class="cmd-dots">
+                                    <div class="cmd-dot"></div>
+                                    <div class="cmd-dot"></div>
+                                    <div class="cmd-dot"></div>
+                                    <span class="cmd-label share-shell-label">bash / zsh / sh</span>
+                                </div>
+                                <button class="cmd-copy share-copy-btn">Copy</button>
+                            </div>
+                            <code
+                                class="command install-command share-command"
+                                id="share-cmd-native"
+                            ></code>
+                        </div>
+                    </div>
+                </div>
+                <div class="share-variant-tabs" id="share-variant-tabs">
+                    <button class="share-vtab active" data-variant="python">Python</button>
+                    <button class="share-vtab" data-variant="node">Node.js</button>
+                    <button class="share-vtab native-only" data-variant="native">
+                        <span class="native-label">Pure Bash</span>
+                    </button>
                 </div>
             </section>
 

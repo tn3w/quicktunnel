@@ -124,3 +124,120 @@ document.getElementById('install-copy-btn')?.addEventListener('click', () => {
         btn.classList.remove('copied');
     }, 2000);
 });
+
+const SHARE_COMMANDS = {
+    linux: {
+        python: `python3 -m http.server 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+        node: `npx serve . -l 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+        native: `(p=8080; while true; do { echo -e "HTTP/1.1 200 OK\\r\\nContent-Type: text/html\\r\\n\\r\\n"; cat index.html; } | nc -l -q1 $p; done) & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+    },
+    macos: {
+        python: `python3 -m http.server 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+        node: `npx serve . -l 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+        native: `ruby -run -e httpd . -p 8080 & ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+    },
+    windows: {
+        python: `Start-Process python3 -ArgumentList "-m", "http.server", "8080" -NoNewWindow; ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+        node: `Start-Process npx -ArgumentList "serve", ".", "-l", "8080" -NoNewWindow; ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+        native: `Start-Job -ScriptBlock { $p=8080; $l=[Net.HttpListener]::new(); $l.Prefixes.Add("http://+:$p/"); $l.Start(); while($true){$c=$l.GetContext(); $f=Join-Path $pwd $c.Request.Url.LocalPath.TrimStart('/'); $b=if(Test-Path $f){[IO.File]::ReadAllBytes($f)}else{$c.Response.StatusCode=404;@()}; $c.Response.OutputStream.Write($b,0,$b.Length); $c.Response.Close()} }; ssh -oStrictHostKeyChecking=no -NR 80:localhost:8080 t.tn3w.dev`,
+    },
+};
+
+const SHARE_SHELL_LABELS = {
+    linux: 'bash / zsh / sh',
+    macos: 'bash / zsh / sh',
+    windows: 'powershell',
+};
+
+const NATIVE_LABELS = {
+    linux: 'Pure Bash',
+    macos: 'Ruby',
+    windows: 'Pure PowerShell',
+};
+
+function detectOS() {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('win')) return 'windows';
+    if (ua.includes('mac')) return 'macos';
+    return 'linux';
+}
+
+let activeShareOS = detectOS();
+let activeShareVariant = 'python';
+
+function renderShareSection() {
+    const cmds = SHARE_COMMANDS[activeShareOS];
+    const shellLbl = SHARE_SHELL_LABELS[activeShareOS];
+
+    const ids = { python: 'share-cmd-python', node: 'share-cmd-node', native: 'share-cmd-native' };
+    Object.entries(ids).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = cmds[key];
+    });
+
+    document.querySelectorAll('#share .share-shell-label').forEach((el) => {
+        el.textContent = shellLbl;
+    });
+
+    const nativeLabelEl = document.querySelector(
+        '.share-vtab[data-variant="native"] .native-label'
+    );
+    if (nativeLabelEl) nativeLabelEl.textContent = NATIVE_LABELS[activeShareOS];
+}
+
+function activateShareVariant(variant) {
+    activeShareVariant = variant;
+    document.querySelectorAll('.share-variant').forEach((el) => {
+        el.classList.toggle('active', el.dataset.variant === variant);
+    });
+    document.querySelectorAll('.share-vtab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.variant === variant);
+    });
+}
+
+function activateShareOS(os) {
+    activeShareOS = os;
+    document.querySelectorAll('.os-tab').forEach((btn) => {
+        const isActive = btn.dataset.os === os;
+        btn.classList.toggle('active', isActive);
+        btn.classList.remove('autodetected');
+    });
+    renderShareSection();
+}
+
+(function initShare() {
+    renderShareSection();
+    activateShareOS(activeShareOS);
+    activateShareVariant('python');
+
+    const detectedLabel = document.getElementById('os-detected');
+    if (detectedLabel) detectedLabel.classList.add('visible');
+})();
+
+document.getElementById('os-tabs')?.addEventListener('click', (e) => {
+    const tab = e.target.closest('.os-tab');
+    if (!tab) return;
+    const detectedLabel = document.getElementById('os-detected');
+    if (detectedLabel) detectedLabel.classList.remove('visible');
+    activateShareOS(tab.dataset.os);
+});
+
+document.getElementById('share-variant-tabs')?.addEventListener('click', (e) => {
+    const tab = e.target.closest('.share-vtab');
+    if (!tab) return;
+    activateShareVariant(tab.dataset.variant);
+});
+
+document.querySelectorAll('.share-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const variant = btn.closest('.share-variant')?.dataset.variant ?? activeShareVariant;
+        const text = SHARE_COMMANDS[activeShareOS][variant] ?? '';
+        navigator.clipboard.writeText(text).catch(() => {});
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+});
