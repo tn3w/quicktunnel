@@ -96,7 +96,7 @@ The tunnel is live in under a second. No handshake dance, no dashboard to naviga
 
 ## How It Works
 
-**STEP 01 — Run the command**
+**STEP 01 — Run command**
 
 ```bash
 ssh -oStrictHostKeyChecking=no \
@@ -176,14 +176,14 @@ Then use: `qtnl 3000` instead of the full SSH command.
 
 ## Comparison
 
-| Feature | **QuickTunnel** | ngrok | cloudflared | localtunnel |
-|:--------|:---:|:---:|:---:|:---:|
-| No install required | **Yes** | Binary | Binary | npm |
-| No account needed | **Yes** | Required | Yes | Yes |
-| Open source server | **Yes** | No | Partial | Yes |
-| Encrypted transport | **SSH** | TLS | QUIC/HTTP2 | TLS |
-| WebSocket support | **Yes** | Yes | Yes | Partial |
-| Custom subdomains | Planned | Paid | No | Unstable |
+| Feature             | **QuickTunnel** |  ngrok   | cloudflared | localtunnel |
+| :------------------ | :-------------: | :------: | :---------: | :---------: |
+| No install required |     **Yes**     |  Binary  |   Binary    |     npm     |
+| No account needed   |     **Yes**     | Required |     Yes     |     Yes     |
+| Open source server  |     **Yes**     |    No    |   Partial   |     Yes     |
+| Encrypted transport |     **SSH**     |   TLS    | QUIC/HTTP2  |     TLS     |
+| WebSocket support   |     **Yes**     |   Yes    |     Yes     |   Partial   |
+| Custom subdomains   |     Planned     |   Paid   |     No      |  Unstable   |
 
 <br>
 
@@ -260,7 +260,7 @@ Edit `docker-compose.yml` to configure ports, domain, and key volume:
 
 ```yaml
 environment:
-  - TUNNEL_DOMAIN=yourdomain.com  # Change to your domain
+    - TUNNEL_DOMAIN=yourdomain.com # Change to your domain
 ```
 
 **From Source**
@@ -284,11 +284,11 @@ The `-y` flag automatically accepts the package installation prompt. This tool m
 
 **Port map:**
 
-| Port | Service | Purpose |
-|:----:|:--------|:--------|
-| `22` | SSH Server | Accepts tunnel connections |
+|  Port  | Service      | Purpose                                  |
+| :----: | :----------- | :--------------------------------------- |
+|  `22`  | SSH Server   | Accepts tunnel connections               |
 | `8080` | Proxy Server | Handles inbound HTTP (map to `80`/`443`) |
-| `3000` | Index Server | Landing page |
+| `3000` | Index Server | Landing page                             |
 
 **Custom domain setup:**
 

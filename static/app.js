@@ -91,11 +91,17 @@ renderInstallCommand();
 document.getElementById('install-tabs')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.install-tab');
     if (!tab) return;
-    document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.install-tab').forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
     activeShell = tab.dataset.shell;
     const label = document.getElementById('install-shell-label');
-    const labelMap = { bash: 'bash / sh', zsh: 'zsh', fish: 'fish', csh: 'csh / tcsh', pwsh: 'powershell' };
+    const labelMap = {
+        bash: 'bash / sh',
+        zsh: 'zsh',
+        fish: 'fish',
+        csh: 'csh / tcsh',
+        pwsh: 'powershell',
+    };
     if (label) label.textContent = labelMap[activeShell] ?? activeShell;
     renderInstallCommand();
 });
@@ -103,9 +109,9 @@ document.getElementById('install-tabs')?.addEventListener('click', (e) => {
 document.getElementById('install-copy-btn')?.addEventListener('click', () => {
     const raw = {
         bash: `grep -qxF 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' ~/.bashrc || echo 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' >> ~/.bashrc`,
-        zsh:  `grep -qxF 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' ~/.zshrc || echo 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' >> ~/.zshrc`,
+        zsh: `grep -qxF 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' ~/.zshrc || echo 'qtnl(){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:"$1" t.tn3w.dev; }' >> ~/.zshrc`,
         fish: `grep -qx 'function qtnl; ssh -oStrictHostKeyChecking=no -NR 80:localhost:$argv[1] t.tn3w.dev; end' ~/.config/fish/config.fish || echo 'function qtnl; ssh -oStrictHostKeyChecking=no -NR 80:localhost:$argv[1] t.tn3w.dev; end' >> ~/.config/fish/config.fish`,
-        csh:  `grep -q 'alias qtnl' ~/.cshrc || echo 'alias qtnl ssh -oStrictHostKeyChecking=no -NR 80:localhost:\\!^ t.tn3w.dev' >> ~/.cshrc`,
+        csh: `grep -q 'alias qtnl' ~/.cshrc || echo 'alias qtnl ssh -oStrictHostKeyChecking=no -NR 80:localhost:\\!^ t.tn3w.dev' >> ~/.cshrc`,
         pwsh: `if(!(Select-String -Quiet 'qtnl' $PROFILE 2>$null)){ Add-Content $PROFILE 'function qtnl($p){ ssh -oStrictHostKeyChecking=no -NR 80:localhost:$p t.tn3w.dev }' }`,
     };
     navigator.clipboard.writeText(raw[activeShell]).catch(() => {});
@@ -113,5 +119,8 @@ document.getElementById('install-copy-btn')?.addEventListener('click', () => {
     if (!btn) return;
     btn.textContent = 'Copied!';
     btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+    }, 2000);
 });

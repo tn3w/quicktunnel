@@ -107,7 +107,7 @@
                 <div class="steps">
                     <div class="step">
                         <div class="step-num">STEP <span>01</span></div>
-                        <div class="step-title">Run The Command</div>
+                        <div class="step-title">Run command</div>
                         <p class="step-desc">
                             Paste the SSH command into any terminal. SSH is pre-installed on Linux,
                             macOS, and Windows 10+. No extra software required.
@@ -153,36 +153,56 @@
                         <div class="cmd-part-token">ssh</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">OpenSSH client</div>
-                        <p class="cmd-part-desc">Pre-installed on Linux, macOS, Windows 10+. No download needed.</p>
+                        <p class="cmd-part-desc">
+                            Pre-installed on Linux, macOS, Windows 10+. No download needed.
+                        </p>
                     </div>
                     <div class="cmd-part">
                         <div class="cmd-part-token flag">-oStrictHostKeyChecking=no</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">Skip host prompt</div>
-                        <p class="cmd-part-desc">Suppresses the "Are you sure?" fingerprint prompt on first connect. Safe for ephemeral tunnels.</p>
+                        <p class="cmd-part-desc">
+                            Suppresses the "Are you sure?" fingerprint prompt on first connect. Safe
+                            for ephemeral tunnels.
+                        </p>
                     </div>
                     <div class="cmd-part">
                         <div class="cmd-part-token flag">-N</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">No remote command</div>
-                        <p class="cmd-part-desc">Opens the tunnel only — no shell session, no login, nothing runs on the server.</p>
+                        <p class="cmd-part-desc">
+                            Opens the tunnel only — no shell session, no login, nothing runs on the
+                            server.
+                        </p>
                     </div>
                     <div class="cmd-part">
-                        <div class="cmd-part-token flag">-R 80:localhost:<span class="port-token" id="explain-port">3000</span></div>
+                        <div class="cmd-part-token flag">
+                            -R 80:localhost:<span class="port-token" id="explain-port">3000</span>
+                        </div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">Remote port forward</div>
-                        <p class="cmd-part-desc">Binds port 80 on the server to your local port. Traffic in → your machine out. That's it.</p>
+                        <p class="cmd-part-desc">
+                            Binds port 80 on the server to your local port. Traffic in → your
+                            machine out. That's it.
+                        </p>
                     </div>
                     <div class="cmd-part">
                         <div class="cmd-part-token host">t.tn3w.dev</div>
                         <div class="cmd-part-arrow">↓</div>
                         <div class="cmd-part-label">Tunnel server</div>
-                        <p class="cmd-part-desc">The public relay. Assigns you a URL and forwards HTTP traffic to your tunnel.</p>
+                        <p class="cmd-part-desc">
+                            The public relay. Assigns you a URL and forwards HTTP traffic to your
+                            tunnel.
+                        </p>
                     </div>
                 </div>
                 <div class="cmd-reassure">
                     <span class="reassure-icon">🔍</span>
-                    <span>This command opens an <strong>outbound</strong> SSH connection from your machine — just like visiting a website. It does not give the server access to your system, files, or any other ports.</span>
+                    <span
+                        >This command opens an <strong>outbound</strong> SSH connection from your
+                        machine — just like visiting a website. It does not give the server access
+                        to your system, files, or any other ports.</span
+                    >
                 </div>
             </section>
 
@@ -239,7 +259,7 @@
                         <div class="feature-title">Sub-Second</div>
                         <p class="feature-desc">
                             The tunnel is live in under a second. No handshake dance, no dashboard
-                            to navigate.
+                            to navigate — instant secure connection.
                         </p>
                         <div class="feature-tag">&lt; 1s startup</div>
                     </div>
@@ -248,7 +268,9 @@
 
             <section id="install">
                 <div class="section-title">QUICK ALIAS</div>
-                <p class="install-intro">Install a <code class="inline-code">qtnl</code> alias once — use it everywhere.</p>
+                <p class="install-intro">
+                    Install a <code class="inline-code">qtnl</code> alias once — use it everywhere.
+                </p>
                 <div class="install-tabs" id="install-tabs">
                     <button class="install-tab active" data-shell="bash">bash</button>
                     <button class="install-tab" data-shell="zsh">zsh</button>
@@ -268,10 +290,16 @@
                     </div>
                     <code class="command install-command" id="install-command-display"></code>
                 </div>
-                <p class="install-note">Restart your shell or run <code class="inline-code">source ~/.bashrc</code> (or the equivalent) after installing. Then tunnel any local port in one command:</p>
-                <div class="step-code" style="margin-top: 12px;">
+                <p class="install-note">
+                    Restart your shell or run <code class="inline-code">source ~/.bashrc</code> (or
+                    the equivalent) after installing. Then tunnel any local port in one command:
+                </p>
+                <div class="step-code" style="margin-top: 12px">
                     $ <span class="hl">qtnl</span> <span class="hl" id="alias-port-demo">3000</span>
-                    <span style="color: var(--dim)"> # forwards localhost:<span id="alias-port-demo2">3000</span> → public URL</span>
+                    <span style="color: var(--dim)">
+                        # forwards localhost:<span id="alias-port-demo2">3000</span> → public
+                        URL</span
+                    >
                 </div>
             </section>
 
