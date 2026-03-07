@@ -5,7 +5,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 fn server_addr() -> String {
-    std::env::var("QT_SERVER").unwrap_or_else(|_| "127.0.0.1:4433".to_string())
+    std::env::var("QT_SERVER").unwrap_or_else(|_| "t.tn3w.dev:4433".to_string())
 }
 
 fn server_name() -> String {
@@ -20,7 +20,14 @@ fn build_client_config() -> quinn::ClientConfig {
 
     let quic_crypto = QuicClientConfig::try_from(crypto).expect("TLS 1.3 required");
 
-    quinn::ClientConfig::new(Arc::new(quic_crypto))
+    let mut transport_config = quinn::TransportConfig::default();
+    transport_config.max_idle_timeout(Some(std::time::Duration::from_secs(86400).try_into().unwrap()));
+    transport_config.keep_alive_interval(Some(std::time::Duration::from_secs(15)));
+
+    let mut config = quinn::ClientConfig::new(Arc::new(quic_crypto));
+    config.transport_config(Arc::new(transport_config));
+
+    config
 }
 
 #[derive(Debug)]
@@ -127,27 +134,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         });
 
-    let addr = server_addr();
+    let addr_str = server_addr();
     let name = server_name();
+
+    let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host(&addr_str).await?.collect();
+    let addr = addrs.into_iter().next().ok_or("Failed to resolve server domain")?;
 
     let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse()?)?;
     endpoint.set_default_client_config(build_client_config());
 
-    let connection = endpoint.connect(addr.parse()?, &name)?.await?;
+    let connection = endpoint.connect(addr, &name)?.await?;
 
-    let (mut control_send, _control_recv) = connection.open_bi().await?;
+    let (mut control_send, mut control_recv) = connection.open_bi().await?;
     control_send
         .write_all(format!("{port}\n").as_bytes())
         .await?;
 
-    let mut uni = connection.accept_uni().await?;
-    let url = read_line(&mut uni).await?;
+    let url = read_line(&mut control_recv).await?;
 
-    let border = "─".repeat(url.len() + 16);
-    println!("┌{border}┐");
-    println!("│  QuickTunnel  ▸  {url}  │");
-    println!("└{border}┘");
-    println!();
+    let inner = format!("  QuickTunnel  ▸  {}  ", url.trim());
+    let border = "─".repeat(inner.chars().count());
+    let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n", border, inner, border);
+    println!("{banner}");
     println!("Forwarding to 127.0.0.1:{port}");
 
     loop {

@@ -30,9 +30,15 @@ pub async fn serve_quic(
         .with_no_client_auth()
         .with_single_cert(vec![cert_der], key_der)?;
 
-    let server_config = quinn::ServerConfig::with_crypto(
+    let mut transport_config = quinn::TransportConfig::default();
+    transport_config.max_idle_timeout(Some(std::time::Duration::from_secs(86400).try_into().unwrap()));
+    transport_config.keep_alive_interval(Some(std::time::Duration::from_secs(15)));
+
+    let mut server_config = quinn::ServerConfig::with_crypto(
         Arc::new(QuicServerConfig::try_from(server_crypto)?),
     );
+    server_config.transport_config(Arc::new(transport_config));
+
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     let endpoint = quinn::Endpoint::server(server_config, addr)?;
 
