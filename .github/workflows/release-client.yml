@@ -60,25 +60,26 @@ jobs:
         shell: bash
         run: |
           # Use names without version to ensure easy "latest" download links
-          BIN_NAME="qt-${{ matrix.target }}"
+          BIN_NAME="qtn-${{ matrix.target }}"
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv "client/target/${{ matrix.target }}/release/qt.exe" "$BIN_NAME.exe"
+            mv "client/target/${{ matrix.target }}/release/qtn.exe" "$BIN_NAME.exe"
           else
-            mv "client/target/${{ matrix.target }}/release/qt" "$BIN_NAME"
+            mv "client/target/${{ matrix.target }}/release/qtn" "$BIN_NAME"
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.target }}
-          path: qt-*
+          path: qtn-*
           retention-days: 1
 
   release:
     name: Publish Release
     needs: build
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
     steps:
@@ -95,11 +96,11 @@ jobs:
         run: |
           cd artifacts
           echo "### SHA256 Checksums" > checksums.txt
-          sha256sum qt-* >> checksums.txt
+          sha256sum qtn-* >> checksums.txt
           echo "" >> checksums.txt
 
           echo "### SHA512 Checksums" >> checksums.txt
-          sha512sum qt-* >> checksums.txt
+          sha512sum qtn-* >> checksums.txt
 
       - name: Sign Binaries
         env:
@@ -111,7 +112,7 @@ jobs:
             
             echo "$SIGNING_KEY" | ssh-add -
             
-            for file in qt-* checksums.txt; do
+            for file in qtn-* checksums.txt; do
               ssh-keygen -Y sign -n "file" -f <(ssh-add -L) "$file"
             done
             

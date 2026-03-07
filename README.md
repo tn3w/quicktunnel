@@ -46,7 +46,7 @@ SSH comes pre-installed on Linux, macOS, and Windows 10+. Nothing to download, n
 
 ### Two ways to connect
 
-All traffic flows through SSH, the same battle-tested protocol securing servers worldwide since 1995. Or, use the optimized `qt` CLI for blazing-fast QUIC speeds.
+All traffic flows through SSH, the same battle-tested protocol securing servers worldwide since 1995. Or, use the optimized `qtn` CLI for blazing-fast QUIC speeds.
 
 <sub>Flexible & Secure</sub>
 
@@ -101,7 +101,7 @@ The tunnel is live in under a second. No handshake dance, no dashboard to naviga
 Using the fast QUIC client:
 
 ```bash
-qt 3000
+qtn 3000
 ```
 
 _Or_, using standard SSH (no install required):
@@ -134,12 +134,12 @@ Hit `Ctrl+C` to terminate. No dangling processes, no data retained.
 
 ## Usage
 
-### Using the QUIC `qt` client
+### Using the QUIC `qtn` client
 
 Download or build the CLI from `client/`.
 
 ```bash
-qt 3000
+qtn 3000
 ```
 
 You can configure the server connection details by setting `QT_SERVER` (default `127.0.0.1:4433`) and `QT_SERVER_NAME` (default `t.tn3w.dev`).
@@ -258,7 +258,7 @@ QuickTunnel is a single Rust binary running multiple servers:
 
 **QUIC Server** — `:4433`
 
-Accepts ultra-fast UDP connections from the `qt` client using QUIC (quinn). Zero head-of-line blocking, very fast handshakes, multi-channel connections.
+Accepts ultra-fast UDP connections from the `qtn` client using QUIC (quinn). Zero head-of-line blocking, very fast handshakes, multi-channel connections.
 
 </td>
 <td width="50%" valign="top">
