@@ -1,0 +1,22 @@
+services:
+  quicktunnel:
+    build: .
+    container_name: quicktunnel
+    ports:
+      - '${INDEX_PORT:-3000}:${INDEX_PORT:-3000}' # Registration endpoint
+      - '${PROXY_PORT:-8080}:${PROXY_PORT:-8080}' # Proxy endpoint
+      - '${SSH_PORT:-22}:${SSH_PORT:-22}' # SSH tunnel endpoint
+      - '${QUIC_PORT:-4433}:${QUIC_PORT:-4433}/udp' # QUIC tunnel endpoint
+    environment:
+      - TUNNEL_DOMAIN=${TUNNEL_DOMAIN:-t.tn3w.dev}
+      - INDEX_PORT=${INDEX_PORT:-3000}
+      - PROXY_PORT=${PROXY_PORT:-8080}
+      - SSH_PORT=${SSH_PORT:-22}
+      - QUIC_PORT=${QUIC_PORT:-4433}
+      - INDEX_ENABLED=${INDEX_ENABLED:-true}
+    volumes:
+      - ssh-keys:/app/keys # Persist SSH host key across restarts
+    restart: unless-stopped
+
+volumes:
+  ssh-keys:

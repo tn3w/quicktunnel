@@ -2,12 +2,12 @@
 
 # 🔁 QuickTunnel
 
-**SSH reverse tunneling — no install required**
+**Fast reverse tunneling — via QUIC protocol or SSH**
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg?style=for-the-badge)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg?style=for-the-badge)](https://www.rust-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg?style=for-the-badge)](Dockerfile)
-[![SSH](https://img.shields.io/badge/transport-SSH-black.svg?style=for-the-badge)](#)
+[![Protocol](https://img.shields.io/badge/transport-QUIC%20%7C%20SSH-black.svg?style=for-the-badge)](#)
 
 <br>
 
@@ -17,7 +17,7 @@ ssh -oStrictHostKeyChecking=no -NR 80:localhost:3000 t.tn3w.dev
 
 **Your local server is now public. That's it.**
 
-<sub>No downloads &nbsp;&bull;&nbsp; No accounts &nbsp;&bull;&nbsp; No configuration</sub>
+<sub>Multiple clients &nbsp;&bull;&nbsp; No accounts &nbsp;&bull;&nbsp; No configuration</sub>
 
 <br>
 
@@ -44,11 +44,11 @@ SSH comes pre-installed on Linux, macOS, and Windows 10+. Nothing to download, n
 </td>
 <td width="33%" valign="top">
 
-### Encrypted
+### Two ways to connect
 
-All traffic flows through SSH, the same battle-tested protocol securing servers worldwide since 1995.
+All traffic flows through SSH, the same battle-tested protocol securing servers worldwide since 1995. Or, use the optimized `qt` CLI for blazing-fast QUIC speeds.
 
-<sub>SSH TLS</sub>
+<sub>Flexible & Secure</sub>
 
 </td>
 <td width="33%" valign="top">
@@ -98,13 +98,17 @@ The tunnel is live in under a second. No handshake dance, no dashboard to naviga
 
 **STEP 01 — Run command**
 
+Using the fast QUIC client:
+
 ```bash
-ssh -oStrictHostKeyChecking=no \
-  -NR 80:localhost:3000 \
-  t.tn3w.dev
+qt 3000
 ```
 
-SSH is pre-installed on all major operating systems. No extra software required.
+_Or_, using standard SSH (no install required):
+
+```bash
+ssh -oStrictHostKeyChecking=no -NR 80:localhost:3000 t.tn3w.dev
+```
 
 **STEP 02 — Get your URL**
 
@@ -129,6 +133,18 @@ Hit `Ctrl+C` to terminate. No dangling processes, no data retained.
 <br>
 
 ## Usage
+
+### Using the QUIC `qt` client
+
+Download or build the CLI from `client/`.
+
+```bash
+qt 3000
+```
+
+You can configure the server connection details by setting `QT_SERVER` (default `127.0.0.1:4433`) and `QT_SERVER_NAME` (default `t.tn3w.dev`).
+
+### Using standard SSH
 
 **Change the port to match your local server:**
 
@@ -226,7 +242,7 @@ These commands start a simple HTTP server on port 8080 and immediately tunnel it
 | No install required |     **Yes**     |  Binary  |   Binary    |     npm     |
 | No account needed   |     **Yes**     | Required |     Yes     |     Yes     |
 | Open source server  |     **Yes**     |    No    |   Partial   |     Yes     |
-| Encrypted transport |     **SSH**     |   TLS    | QUIC/HTTP2  |     TLS     |
+| Encrypted transport | **QUIC / SSH**  |   TLS    | QUIC/HTTP2  |     TLS     |
 | WebSocket support   |     **Yes**     |   Yes    |     Yes     |   Partial   |
 | Custom subdomains   |     Planned     |   Paid   |     No      |  Unstable   |
 
@@ -234,29 +250,31 @@ These commands start a simple HTTP server on port 8080 and immediately tunnel it
 
 ## Architecture
 
-QuickTunnel is a single Rust binary running three servers:
+QuickTunnel is a single Rust binary running multiple servers:
 
 <table>
 <tr>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
+
+**QUIC Server** — `:4433`
+
+Accepts ultra-fast UDP connections from the `qt` client using QUIC (quinn). Zero head-of-line blocking, very fast handshakes, multi-channel connections.
+
+</td>
+<td width="50%" valign="top">
 
 **SSH Server** — `:22`
 
-Accepts reverse tunnel connections via [`russh`](https://github.com/Eugeny/russh). On connect, generates a unique 6-character token, displays the public URL as an SSH banner, and registers the tunnel in a shared registry.
+Accepts fallback reverse tunnel connections via `russh` using standard SSH clients. Generates a unique 6-character token on connect.
 
 </td>
-<td width="33%" valign="top">
+</tr>
+<tr>
+<td width="100%" valign="top" colspan="2">
 
-**Proxy Server** — `:8080`
+**Proxy Server & Index** — `:8080`, `:3000`
 
-Handles all `*.t.tn3w.dev` HTTP requests. Extracts the token from the subdomain, looks up the tunnel in the registry, opens a forwarded TCP channel over SSH, and proxies the request/response. Returns detailed error pages for common failure scenarios.
-
-</td>
-<td width="33%" valign="top">
-
-**Index Server** — `:3000`
-
-Serves the landing page (`index.html`) with an interactive port picker and live command generation. Returns a 404 page for non-existent routes. Can be disabled via `INDEX_ENABLED=false` if only tunnel functionality is needed.
+Handles HTTP proxy routing and landing pages. Unpacks token, resolves tunnel (QUIC or SSH), handles connection over relevant protocol.
 
 </td>
 </tr>
@@ -290,6 +308,7 @@ docker run \
   -p 22:22 \
   -p 80:8080 \
   -p 3000:3000 \
+  -p 4433:4433/udp \
   -e TUNNEL_DOMAIN=yourdomain.com \
   quicktunnel
 ```
@@ -307,6 +326,7 @@ TUNNEL_DOMAIN=yourdomain.com  # Your domain (default: t.tn3w.dev)
 INDEX_PORT=3000               # Landing page server
 PROXY_PORT=8080               # HTTP proxy (map to 80/443)
 SSH_PORT=22                   # SSH tunnel listener
+QUIC_PORT=4433                # QUIC tunnel listener
 INDEX_ENABLED=true            # Set false to disable landing page server
 ```
 

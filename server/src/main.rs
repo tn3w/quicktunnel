@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+
 use axum::{
     Router,
     body::Body,
@@ -16,22 +17,30 @@ use russh::keys::{
     Algorithm, PrivateKey, ssh_key,
     ssh_key::rand_core::{OsRng, RngCore},
 };
-use russh::server::{Auth, Config, Handle, Handler, Server, Session};
-use russh::{ChannelId, ChannelMsg, Preferred, kex};
+use russh::server::{Auth, Config, Handler, Server, Session};
+use russh::{ChannelId, Preferred, kex};
 use tokio::net::TcpListener;
 
 mod errors;
 
-type Registry = Arc<RwLock<HashMap<String, Option<Tunnel>>>>;
+pub type Registry = Arc<RwLock<HashMap<String, Option<Tunnel>>>>;
 
 #[derive(Clone)]
-struct Tunnel {
-    host: String,
-    port: u16,
-    handle: Handle,
+pub enum TunnelHandle {
+    Ssh(russh::server::Handle),
+    Quic(quinn::Connection),
 }
 
-fn tunnel_domain() -> String {
+#[derive(Clone)]
+pub struct Tunnel {
+    pub host: String,
+    pub port: u16,
+    pub handle: TunnelHandle,
+}
+
+pub mod quic;
+
+pub fn tunnel_domain() -> String {
     std::env::var("TUNNEL_DOMAIN").unwrap_or_else(|_| "t.tn3w.dev".to_string())
 }
 
@@ -81,10 +90,30 @@ fn generate_unique_token(registry: &Registry) -> String {
     }
 }
 
-fn register_new_tunnel(registry: &Registry) -> String {
+pub fn register_new_tunnel(registry: &Registry) -> String {
     let token = generate_unique_token(registry);
     registry.write().unwrap().insert(token.clone(), None);
     token
+}
+
+pub enum TunnelStream {
+    Ssh(russh::Channel<russh::server::Msg>),
+    Quic(quinn::SendStream, quinn::RecvStream),
+}
+
+impl TunnelStream {
+    pub async fn data(&mut self, data: &[u8]) -> Result<(), ()> {
+        match self {
+            Self::Ssh(ch) => ch.data(data).await.map_err(|_| ()),
+            Self::Quic(send, _) => send.write_all(data).await.map_err(|_| ()),
+        }
+    }
+
+    pub fn finish_send(&mut self) {
+        if let Self::Quic(send, _) = self {
+            let _ = send.finish();
+        }
+    }
 }
 
 fn extract_token_from_host(host: &str) -> Option<String> {
@@ -226,7 +255,7 @@ fn build_raw_http_request<B>(request: &Request<B>, body_bytes: &[u8]) -> Vec<u8>
 }
 
 async fn collect_tunnel_response(
-    channel: &mut russh::Channel<russh::server::Msg>,
+    channel: &mut TunnelStream,
     tunnel_domain: &str,
 ) -> Result<Vec<u8>, Box<Response>> {
     const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024;
@@ -239,11 +268,24 @@ async fn collect_tunnel_response(
             return Err(Box::new(errors::response_too_large_error(tunnel_domain)));
         }
 
-        match tokio::time::timeout(RESPONSE_TIMEOUT, channel.wait()).await {
-            Ok(Some(ChannelMsg::Data { ref data })) => raw_response.extend_from_slice(data),
-            Ok(Some(ChannelMsg::Eof)) | Ok(None) => break,
-            Ok(_) => continue,
-            Err(_) => return Err(Box::new(errors::tunnel_timeout_error(tunnel_domain))),
+        match channel {
+            TunnelStream::Ssh(ch) => {
+                match tokio::time::timeout(RESPONSE_TIMEOUT, ch.wait()).await {
+                    Ok(Some(russh::ChannelMsg::Data { data })) => raw_response.extend_from_slice(&data),
+                    Ok(Some(russh::ChannelMsg::Eof)) | Ok(None) => break,
+                    Ok(_) => continue,
+                    Err(_) => return Err(Box::new(errors::tunnel_timeout_error(tunnel_domain))),
+                }
+            }
+            TunnelStream::Quic(_send, recv) => {
+                let mut buf = [0; 65536];
+                match tokio::time::timeout(RESPONSE_TIMEOUT, recv.read(&mut buf)).await {
+                    Ok(Ok(Some(n))) => raw_response.extend_from_slice(&buf[..n]),
+                    Ok(Ok(None)) => break,
+                    Ok(Err(_)) => break,
+                    Err(_) => return Err(Box::new(errors::tunnel_timeout_error(tunnel_domain))),
+                }
+            }
         }
     }
 
@@ -331,14 +373,16 @@ async fn proxy_request(
         Err(error_response) => return *error_response,
     };
 
-    let mut channel = match tunnel
-        .handle
-        .channel_open_forwarded_tcpip(tunnel.host.clone(), tunnel.port as u32, "127.0.0.1", 0)
-        .await
-    {
-        Ok(channel) => channel,
-        Err(e) => {
-            return errors::upstream_connection_failed_error(Some(&e.to_string()), &tunnel_domain);
+    let mut channel = match tunnel.handle {
+        TunnelHandle::Ssh(handle) => match handle
+            .channel_open_forwarded_tcpip(tunnel.host.clone(), tunnel.port as u32, "127.0.0.1", 0)
+            .await {
+                Ok(channel) => TunnelStream::Ssh(channel),
+                Err(e) => return errors::upstream_connection_failed_error(Some(&e.to_string()), &tunnel_domain),
+            }
+        TunnelHandle::Quic(conn) => match conn.open_bi().await {
+            Ok((send, recv)) => TunnelStream::Quic(send, recv),
+            Err(e) => return errors::upstream_connection_failed_error(Some(&e.to_string()), &tunnel_domain),
         }
     };
 
@@ -357,6 +401,8 @@ async fn proxy_request(
     if channel.data(raw_request.as_slice()).await.is_err() {
         return errors::tunnel_send_failed_error(&tunnel_domain);
     }
+
+    channel.finish_send();
 
     let raw_response = match collect_tunnel_response(&mut channel, &tunnel_domain).await {
         Ok(response) => response,
@@ -437,7 +483,7 @@ impl Handler for SshClientHandler {
         let tunnel = Tunnel {
             host: address.to_string(),
             port: *port as u16,
-            handle: session.handle(),
+            handle: TunnelHandle::Ssh(session.handle()),
         };
         let registry = self.registry.clone();
 
@@ -524,7 +570,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let host_key = load_or_create_host_key(Path::new("/app/keys/ssh_host_ed25519_key"))?;
     let ssh_config = build_ssh_config(host_key);
-    let mut ssh_server = TunnelServer { registry };
+    let mut ssh_server = TunnelServer {
+        registry: registry.clone(),
+    };
 
     let mut tasks = vec![
         tokio::spawn(async move {
@@ -537,6 +585,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .run_on_address(ssh_config, ("0.0.0.0", ssh_port()))
                 .await
                 .expect("SSH server failed");
+        }),
+        tokio::spawn({
+            let registry = registry.clone();
+            async move {
+                quic::serve_quic(registry, quic::quic_port())
+                    .await
+                    .expect("QUIC server failed");
+            }
         }),
     ];
 
