@@ -16,7 +16,7 @@ pub fn quic_port() -> u16 {
 pub async fn serve_quic(
     registry: Registry,
     port: u16,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cert = generate_simple_self_signed(vec![tunnel_domain()])?;
     let cert_der =
         rustls::pki_types::CertificateDer::from(cert.cert.der().to_vec());

@@ -7,10 +7,9 @@ edition = "2024"
 tokio = { version = "1.49", features = ["net", "rt-multi-thread", "macros", "time", "sync"] }
 axum = "0.8"
 russh = "0.57"
-quinn = { version = "0.11"}
+quinn = { version = "0.11", default-features = false, features = ["rustls", "runtime-tokio"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rcgen = "0.14.7"
-anyhow = "1.0.102"
-rustls = "0.23.37"
 futures-util = "0.3.32"
 
 [profile.release]
