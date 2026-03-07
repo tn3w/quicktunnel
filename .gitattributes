@@ -1,2 +1,2 @@
-static/** linguist-vendored=true
-templates/** linguist-vendored=true
+server/static/** linguist-vendored=true
+server/templates/** linguist-vendored=true
