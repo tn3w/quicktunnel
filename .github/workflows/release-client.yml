@@ -3,7 +3,7 @@ name: Release Client
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -61,7 +61,7 @@ jobs:
         run: |
           # Use names without version to ensure easy "latest" download links
           BIN_NAME="qt-${{ matrix.target }}"
-          
+
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv "client/target/${{ matrix.target }}/release/qt.exe" "$BIN_NAME.exe"
           else
@@ -97,7 +97,7 @@ jobs:
           echo "### SHA256 Checksums" > checksums.txt
           sha256sum qt-* >> checksums.txt
           echo "" >> checksums.txt
-          
+
           echo "### SHA512 Checksums" >> checksums.txt
           sha512sum qt-* >> checksums.txt
 
@@ -107,12 +107,15 @@ jobs:
         run: |
           cd artifacts
           if [ -n "$SIGNING_KEY" ]; then
-            echo "$SIGNING_KEY" | gpg --batch --import
+            eval $(ssh-agent -s)
             
-            # Sign all binaries and the checksum file
+            echo "$SIGNING_KEY" | ssh-add -
+            
             for file in qt-* checksums.txt; do
-              gpg --batch --yes --pinentry-mode loopback --detach-sign --armor "$file"
+              ssh-keygen -Y sign -n "file" -f <(ssh-add -L) "$file"
             done
+            
+            ssh-agent -k
           else
             echo "No SIGNING_KEY secret found in env, skipping signature generation."
           fi
