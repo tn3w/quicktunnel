@@ -4,7 +4,6 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-
 use axum::{
     Router,
     body::Body,
@@ -90,7 +89,22 @@ fn generate_unique_token(registry: &Registry) -> String {
     }
 }
 
-pub fn register_new_tunnel(registry: &Registry) -> String {
+pub fn register_new_tunnel(registry: &Registry, req_handle: Option<String>) -> String {
+    if let Some(mut handle) = req_handle {
+        handle = handle.to_lowercase();
+        let is_valid_len = handle.len() >= 4 && handle.len() <= 63 && handle.len() != 6;
+        let is_valid_chars = handle
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+
+        if is_valid_len && is_valid_chars {
+            let is_available = !registry.read().unwrap().contains_key(&handle);
+            if is_available {
+                registry.write().unwrap().insert(handle.clone(), None);
+                return handle;
+            }
+        }
+    }
     let token = generate_unique_token(registry);
     registry.write().unwrap().insert(token.clone(), None);
     token
@@ -271,7 +285,9 @@ async fn collect_tunnel_response(
         match channel {
             TunnelStream::Ssh(ch) => {
                 match tokio::time::timeout(RESPONSE_TIMEOUT, ch.wait()).await {
-                    Ok(Some(russh::ChannelMsg::Data { data })) => raw_response.extend_from_slice(&data),
+                    Ok(Some(russh::ChannelMsg::Data { data })) => {
+                        raw_response.extend_from_slice(&data)
+                    }
                     Ok(Some(russh::ChannelMsg::Eof)) | Ok(None) => break,
                     Ok(_) => continue,
                     Err(_) => return Err(Box::new(errors::tunnel_timeout_error(tunnel_domain))),
@@ -376,14 +392,25 @@ async fn proxy_request(
     let mut channel = match tunnel.handle {
         TunnelHandle::Ssh(handle) => match handle
             .channel_open_forwarded_tcpip(tunnel.host.clone(), tunnel.port as u32, "127.0.0.1", 0)
-            .await {
-                Ok(channel) => TunnelStream::Ssh(channel),
-                Err(e) => return errors::upstream_connection_failed_error(Some(&e.to_string()), &tunnel_domain),
+            .await
+        {
+            Ok(channel) => TunnelStream::Ssh(channel),
+            Err(e) => {
+                return errors::upstream_connection_failed_error(
+                    Some(&e.to_string()),
+                    &tunnel_domain,
+                );
             }
+        },
         TunnelHandle::Quic(conn) => match conn.open_bi().await {
             Ok((send, recv)) => TunnelStream::Quic(send, recv),
-            Err(e) => return errors::upstream_connection_failed_error(Some(&e.to_string()), &tunnel_domain),
-        }
+            Err(e) => {
+                return errors::upstream_connection_failed_error(
+                    Some(&e.to_string()),
+                    &tunnel_domain,
+                );
+            }
+        },
     };
 
     let (request_parts, request_body) = request.into_parts();
@@ -428,7 +455,7 @@ impl SshClientHandler {
 
     fn get_or_create_token(&mut self) -> &str {
         if self.token.is_none() {
-            self.token = Some(register_new_tunnel(&self.registry));
+            self.token = Some(register_new_tunnel(&self.registry, None));
         }
         self.token.as_deref().unwrap()
     }

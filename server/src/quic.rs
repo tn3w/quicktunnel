@@ -1,7 +1,4 @@
-use crate::{
-    Registry, Tunnel, TunnelHandle, register_new_tunnel,
-    tunnel_domain,
-};
+use crate::{Registry, Tunnel, TunnelHandle, register_new_tunnel, tunnel_domain};
 use quinn::crypto::rustls::QuicServerConfig;
 use rcgen::generate_simple_self_signed;
 use std::{net::SocketAddr, sync::Arc};
@@ -18,31 +15,26 @@ pub async fn serve_quic(
     port: u16,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cert = generate_simple_self_signed(vec![tunnel_domain()])?;
-    let cert_der =
-        rustls::pki_types::CertificateDer::from(cert.cert.der().to_vec());
+    let cert_der = rustls::pki_types::CertificateDer::from(cert.cert.der().to_vec());
     let key_der =
-        rustls::pki_types::PrivatePkcs8KeyDer::from(
-            cert.signing_key.serialize_der(),
-        )
-        .into();
+        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.signing_key.serialize_der()).into();
 
     let server_crypto = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(vec![cert_der], key_der)?;
 
     let mut transport_config = quinn::TransportConfig::default();
-    transport_config.max_idle_timeout(Some(std::time::Duration::from_secs(86400).try_into().unwrap()));
+    transport_config.max_idle_timeout(Some(
+        std::time::Duration::from_secs(86400).try_into().unwrap(),
+    ));
     transport_config.keep_alive_interval(Some(std::time::Duration::from_secs(15)));
 
-    let mut server_config = quinn::ServerConfig::with_crypto(
-        Arc::new(QuicServerConfig::try_from(server_crypto)?),
-    );
+    let mut server_config =
+        quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(server_crypto)?));
     server_config.transport_config(Arc::new(transport_config));
 
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     let endpoint = quinn::Endpoint::server(server_config, addr)?;
-
-    println!("QUIC server listening on {addr}");
 
     while let Some(incoming) = endpoint.accept().await {
         let registry = registry.clone();
@@ -56,9 +48,9 @@ pub async fn serve_quic(
     Ok(())
 }
 
-async fn read_control_port(
+async fn read_control_port_and_handle(
     recv: &mut quinn::RecvStream,
-) -> Option<u16> {
+) -> Option<(u16, Option<String>)> {
     let mut buf = Vec::new();
 
     loop {
@@ -67,7 +59,7 @@ async fn read_control_port(
             Ok(Some(1)) if byte[0] == b'\n' => break,
             Ok(Some(1)) => {
                 buf.push(byte[0]);
-                if buf.len() > 10 {
+                if buf.len() > 1024 {
                     return None;
                 }
             }
@@ -75,27 +67,36 @@ async fn read_control_port(
         }
     }
 
-    String::from_utf8(buf).ok()?.parse().ok()
+    let line = String::from_utf8(buf).ok()?;
+    let parts: Vec<&str> = line.split_whitespace().collect();
+
+    if parts.is_empty() {
+        return None;
+    }
+
+    let port: u16 = parts[0].parse().ok()?;
+    let handle = if parts.len() > 1 {
+        Some(parts[1].to_string())
+    } else {
+        None
+    };
+
+    Some((port, handle))
 }
 
-async fn handle_connection(
-    connection: quinn::Connection,
-    registry: Registry,
-) {
-    let (mut control_send, mut control_recv) =
-        match connection.accept_bi().await {
-            Ok(pair) => pair,
-            Err(_) => return,
-        };
+async fn handle_connection(connection: quinn::Connection, registry: Registry) {
+    let (mut control_send, mut control_recv) = match connection.accept_bi().await {
+        Ok(pair) => pair,
+        Err(_) => return,
+    };
 
-    let port = match read_control_port(&mut control_recv).await {
+    let (port, req_handle) = match read_control_port_and_handle(&mut control_recv).await {
         Some(p) => p,
         None => return,
     };
 
-    let token = register_new_tunnel(&registry);
+    let token = register_new_tunnel(&registry, req_handle);
     let url = format!("https://{}.{}", token, tunnel_domain());
-    println!("QUIC tunnel connected: {url}");
 
     let tunnel = Tunnel {
         host: "127.0.0.1".to_string(),
@@ -112,9 +113,7 @@ async fn handle_connection(
     let _ = control_send.write_all(banner.as_bytes()).await;
     let _ = control_send.finish();
 
-    let mut buf = [0u8; 1];
-    while let Ok(Some(_)) = control_recv.read(&mut buf).await {}
+    connection.closed().await;
 
-    println!("QUIC tunnel disconnected: {url}");
     registry.write().unwrap().remove(&token);
 }

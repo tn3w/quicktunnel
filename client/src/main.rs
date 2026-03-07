@@ -21,7 +21,9 @@ fn build_client_config() -> quinn::ClientConfig {
     let quic_crypto = QuicClientConfig::try_from(crypto).expect("TLS 1.3 required");
 
     let mut transport_config = quinn::TransportConfig::default();
-    transport_config.max_idle_timeout(Some(std::time::Duration::from_secs(86400).try_into().unwrap()));
+    transport_config.max_idle_timeout(Some(
+        std::time::Duration::from_secs(86400).try_into().unwrap(),
+    ));
     transport_config.keep_alive_interval(Some(std::time::Duration::from_secs(15)));
 
     let mut config = quinn::ClientConfig::new(Arc::new(quic_crypto));
@@ -130,25 +132,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nth(1)
         .and_then(|a| a.parse().ok())
         .unwrap_or_else(|| {
-            eprintln!("Usage: qt <port>");
+            eprintln!("Usage: qt <port> [handle]");
             std::process::exit(1);
         });
+
+    let handle: Option<String> = std::env::args().nth(2).map(|h| h.to_lowercase());
+
+    if let Some(h) = &handle {
+        let is_valid_len = h.len() >= 4 && h.len() <= 63 && h.len() != 6;
+        let is_valid_chars = h
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+
+        if !is_valid_len || !is_valid_chars {
+            eprintln!("Invalid handle: 4-63 chars; lowercase letters or digits");
+            std::process::exit(1);
+        }
+    }
 
     let addr_str = server_addr();
     let name = server_name();
 
     let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host(&addr_str).await?.collect();
-    let addr = addrs.into_iter().next().ok_or("Failed to resolve server domain")?;
+    let addr = addrs
+        .into_iter()
+        .next()
+        .ok_or("Failed to resolve server domain")?;
 
     let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse()?)?;
     endpoint.set_default_client_config(build_client_config());
 
     let connection = endpoint.connect(addr, &name)?.await?;
+    let endpoint_clone = endpoint.clone();
 
     let (mut control_send, mut control_recv) = connection.open_bi().await?;
-    control_send
-        .write_all(format!("{port}\n").as_bytes())
-        .await?;
+    let control_msg = match &handle {
+        Some(h) => format!("{port} {h}\n"),
+        None => format!("{port}\n"),
+    };
+    control_send.write_all(control_msg.as_bytes()).await?;
 
     let url = read_line(&mut control_recv).await?;
 
@@ -157,6 +179,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let banner = format!("\r\n┌{}┐\r\n│{}│\r\n└{}┘\r\n", border, inner, border);
     println!("{banner}");
     println!("Forwarding to 127.0.0.1:{port}");
+
+    let conn_clone = connection.clone();
+    tokio::spawn(async move {
+        let _ = tokio::signal::ctrl_c().await;
+        conn_clone.close(0u32.into(), b"client disconnect");
+        endpoint_clone.wait_idle().await;
+        std::process::exit(0);
+    });
 
     loop {
         match connection.accept_bi().await {
