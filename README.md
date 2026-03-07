@@ -298,6 +298,23 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 
 <br>
 
+
+## Signature Verification
+
+**Signing key (SHA256):** SHA256:F0l/S31DsxQfl6qOQoK0t2n8mHVaK2oKe+87hmIKbM8
+
+```bash
+# Download binary and signature
+curl -fsSL https://github.com/tn3w/quicktunnel/releases/latest/download/x86_64-unknown-linux-gnu -o qtn-linux
+curl -fsSL https://github.com/tn3w/quicktunnel/releases/latest/download/x86_64-unknown-linux-gnu.sig -o qtn-linux.sig
+
+# Download public key
+curl -fsSL https://www.tn3w.dev/quicktunnel_id.pub -o quicktunnel_id.pub
+
+# Verify signature
+ssh-keygen -Y verify -f quicktunnel_id.pub -s qtn-linux.sig qtn-linux
+```
+
 ## Self-Hosting
 
 **Docker**
