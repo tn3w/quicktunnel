@@ -1,17 +1,15 @@
-use quinn::crypto::rustls::QuicClientConfig;
 use quinn::RecvStream;
+use quinn::crypto::rustls::QuicClientConfig;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 fn server_addr() -> String {
-    std::env::var("QT_SERVER")
-        .unwrap_or_else(|_| "127.0.0.1:4433".to_string())
+    std::env::var("QT_SERVER").unwrap_or_else(|_| "127.0.0.1:4433".to_string())
 }
 
 fn server_name() -> String {
-    std::env::var("QT_SERVER_NAME")
-        .unwrap_or_else(|_| "t.tn3w.dev".to_string())
+    std::env::var("QT_SERVER_NAME").unwrap_or_else(|_| "t.tn3w.dev".to_string())
 }
 
 fn build_client_config() -> quinn::ClientConfig {
@@ -20,8 +18,7 @@ fn build_client_config() -> quinn::ClientConfig {
         .with_custom_certificate_verifier(Arc::new(SkipVerify))
         .with_no_client_auth();
 
-    let quic_crypto = QuicClientConfig::try_from(crypto)
-        .expect("TLS 1.3 required");
+    let quic_crypto = QuicClientConfig::try_from(crypto).expect("TLS 1.3 required");
 
     quinn::ClientConfig::new(Arc::new(quic_crypto))
 }
@@ -37,10 +34,7 @@ impl rustls::client::danger::ServerCertVerifier for SkipVerify {
         _server_name: &rustls::pki_types::ServerName<'_>,
         _ocsp_response: &[u8],
         _now: rustls::pki_types::UnixTime,
-    ) -> Result<
-        rustls::client::danger::ServerCertVerified,
-        rustls::Error,
-    > {
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
         Ok(rustls::client::danger::ServerCertVerified::assertion())
     }
 
@@ -49,10 +43,7 @@ impl rustls::client::danger::ServerCertVerifier for SkipVerify {
         _message: &[u8],
         _cert: &rustls::pki_types::CertificateDer<'_>,
         _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<
-        rustls::client::danger::HandshakeSignatureValid,
-        rustls::Error,
-    > {
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
         Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
     }
 
@@ -61,10 +52,7 @@ impl rustls::client::danger::ServerCertVerifier for SkipVerify {
         _message: &[u8],
         _cert: &rustls::pki_types::CertificateDer<'_>,
         _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<
-        rustls::client::danger::HandshakeSignatureValid,
-        rustls::Error,
-    > {
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
         Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
     }
 
@@ -95,11 +83,7 @@ async fn read_line(recv: &mut RecvStream) -> Result<String, Box<dyn std::error::
     Ok(String::from_utf8(buf)?)
 }
 
-async fn proxy_stream(
-    mut send: quinn::SendStream,
-    mut recv: quinn::RecvStream,
-    port: u16,
-) {
+async fn proxy_stream(mut send: quinn::SendStream, mut recv: quinn::RecvStream, port: u16) {
     let mut request = Vec::new();
     let mut buf = [0u8; 65536];
 
@@ -111,11 +95,7 @@ async fn proxy_stream(
         }
     }
 
-    let mut tcp = match TcpStream::connect(
-        format!("127.0.0.1:{port}"),
-    )
-    .await
-    {
+    let mut tcp = match TcpStream::connect(format!("127.0.0.1:{port}")).await {
         Ok(s) => s,
         Err(_) => return,
     };
@@ -150,17 +130,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = server_addr();
     let name = server_name();
 
-    let mut endpoint = quinn::Endpoint::client(
-        "0.0.0.0:0".parse()?,
-    )?;
+    let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse()?)?;
     endpoint.set_default_client_config(build_client_config());
 
-    let connection = endpoint
-        .connect(addr.parse()?, &name)?
-        .await?;
+    let connection = endpoint.connect(addr.parse()?, &name)?.await?;
 
-    let (mut control_send, _control_recv) =
-        connection.open_bi().await?;
+    let (mut control_send, _control_recv) = connection.open_bi().await?;
     control_send
         .write_all(format!("{port}\n").as_bytes())
         .await?;
