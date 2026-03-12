@@ -577,7 +577,15 @@ fn build_ssh_config(host_key: PrivateKey) -> Arc<Config> {
         event_buffer_size: 20,
         keys: vec![host_key],
         preferred: Preferred {
-            kex: Cow::Borrowed(&[kex::MLKEM768X25519_SHA256]),
+            kex: Cow::Borrowed(&[
+                kex::MLKEM768X25519_SHA256,
+                kex::CURVE25519,
+                kex::CURVE25519_PRE_RFC_8731,
+                kex::DH_GEX_SHA256,
+                kex::DH_G18_SHA512,
+                kex::DH_G16_SHA512,
+                kex::DH_G14_SHA256,
+            ]),
             ..Preferred::default()
         },
         nodelay: true,
