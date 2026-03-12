@@ -293,7 +293,7 @@ Client → abc123.t.tn3w.dev → Proxy :8080 → Registry lookup
 - **Token generation** — 6-character alphanumeric using `OsRng`, collision-checked
 - **Limits** — Request: 10 MB, Response: 50 MB, Timeout: 30s
 - **Host key** — Ed25519, persisted to `/app/keys/ssh_host_ed25519_key`
-- **KEX** — `mlkem768x25519-sha256` (post-quantum hybrid)
+- **KEX** — `mlkem768x25519-sha256` preferred (post-quantum hybrid), with fallback to `curve25519-sha256`, `curve25519-sha256@libssh.org`, `diffie-hellman-group-exchange-sha256`, `diffie-hellman-group18-sha512`, `diffie-hellman-group16-sha512`, `diffie-hellman-group14-sha256`
 - **Auth** — All methods accept (no credentials required)
 
 <br>
