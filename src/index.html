@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>quicktunnel</title>
+<style>
+  :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+  body { max-width: 40rem; margin: 15vh auto; padding: 0 1rem; }
+  code { background: #8882; padding: .5rem .75rem; border-radius: .4rem; display: block; }
+</style>
+<h1>quicktunnel</h1>
+<p>Share a local web server under a public <b>https://xxxx.{domain}</b> address:</p>
+<code>curl -s https://t.{domain}/3000|sh</code>
+<p>Replace 3000 with your port. Needs only ssh, curl and openssl. Press Ctrl+C to stop.</p>
+<p>Every tunnel serves <b>user content</b> from someone's own computer, not from
+  {domain}. Visitors see a warning before the first page. Report abuse to
+  <a href="mailto:abuse@{domain}">abuse@{domain}</a>.</p>
+<p><a href="https://github.com/tn3w/quicktunnel">Source code</a></p>
+</html>

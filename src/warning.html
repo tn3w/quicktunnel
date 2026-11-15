@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>User content ahead</title>
+<style>
+  :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+  body { max-width: 40rem; margin: 15vh auto; padding: 0 1rem; }
+  button { font: inherit; padding: .5rem 1.25rem; cursor: pointer; }
+</style>
+<h1>You are visiting user content</h1>
+<p><b id="host"></b> is a temporary tunnel to someone's own computer. Its content does
+  not come from and is not checked by {domain}.</p>
+<p>Do not enter passwords or payment details unless you know and trust whoever sent
+  you this link.</p>
+<p><button onclick="document.cookie='__Host-tunnel-warning=seen; path=/; secure; \
+max-age=86400'; location.reload()">Continue</button></p>
+<p>Report abuse to <a href="mailto:abuse@{domain}">abuse@{domain}</a>.</p>
+<script>document.getElementById("host").textContent = location.host</script>
+</html>
