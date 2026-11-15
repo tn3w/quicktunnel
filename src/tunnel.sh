@@ -3,7 +3,7 @@ command -v openssl >/dev/null || { echo "quicktunnel needs openssl" >&2; exit 1;
 echo "Connecting localhost:{port} to $h ..."
 upgrade="GET / HTTP/1.1\r\nHost: $h\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
 Sec-WebSocket-Key: $(openssl rand -base64 16)\r\nSec-WebSocket-Version: 13\r\n\r\n"
-connect="openssl s_client -quiet -verify_quiet -connect $h:443 -servername $h"
+connect="openssl s_client -quiet -connect $h:443 -servername $h 2>/dev/null"
 known_hosts=$(mktemp)
 trap 'rm -f "$known_hosts"' EXIT INT TERM
 echo "$h {key}" >"$known_hosts"
